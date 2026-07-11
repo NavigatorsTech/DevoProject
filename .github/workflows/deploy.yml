@@ -41,14 +41,14 @@ jobs:
             git reset --hard origin/master
             npm ci
             npm run build
-            pm2 reload qtapp --update-env || pm2 restart qtapp
+            pm2 startOrReload ecosystem.config.js
             sleep 5
             if ! curl -kfsS https://127.0.0.1:3000/ > /dev/null; then
               echo "Health check failed, rolling back to $PREV"
               git reset --hard "$PREV"
               npm ci
               npm run build
-              pm2 reload qtapp --update-env
+              pm2 startOrReload ecosystem.config.js
               exit 1
             fi
             echo "Deploy successful at $(git rev-parse --short HEAD)"
