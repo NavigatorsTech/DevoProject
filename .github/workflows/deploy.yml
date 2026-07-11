@@ -1,0 +1,54 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Build validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+  deploy:
+    name: Deploy via SSH
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy and restart
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -euo pipefail
+            cd /QTNuxtProject
+            PREV=$(git rev-parse HEAD)
+            git fetch --prune origin master
+            git reset --hard origin/master
+            npm ci
+            npm run build
+            pm2 reload qtapp --update-env || pm2 restart qtapp
+            sleep 5
+            if ! curl -kfsS https://127.0.0.1:3000/ > /dev/null; then
+              echo "Health check failed, rolling back to $PREV"
+              git reset --hard "$PREV"
+              npm ci
+              npm run build
+              pm2 reload qtapp --update-env
+              exit 1
+            fi
+            echo "Deploy successful at $(git rev-parse --short HEAD)"
