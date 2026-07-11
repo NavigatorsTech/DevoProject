@@ -4,6 +4,19 @@ export const state = () => ({
     qtEntries: []
 })
 
+// --- Streaks helpers ---
+// Normalize any date (Date object, ISO string, etc.) to a DST-safe integer
+// day index based on the *local* calendar day, so consecutive days always
+// differ by exactly 1 regardless of daylight-saving shifts.
+function toDayIndex(input) {
+    const d = new Date(input);
+    return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+}
+
+function uniqueSortedDays(entries) {
+    return [...new Set(entries.map(e => toDayIndex(e.date)))].sort((a, b) => a - b);
+}
+
 export const mutations = {
     setAllQTEntries(state, entries) {
         state.qtEntries = entries
@@ -87,5 +100,46 @@ export const getters = {
     },
     getQTEntriesLength(state) {
         return state.qtEntries.length;
+    },
+    getCurrentStreak(state) {
+        const days = uniqueSortedDays(state.qtEntries);
+        if (days.length === 0) return 0;
+
+        const today = toDayIndex(new Date());
+        const mostRecent = days[days.length - 1];
+
+        // Streak is broken if the most recent entry is older than yesterday.
+        if (today - mostRecent > 1) return 0;
+
+        let streak = 1;
+        for (let i = days.length - 1; i > 0; i--) {
+            if (days[i] - days[i - 1] === 1) {
+                streak++;
+            } else {
+                break;
+            }
+        }
+        return streak;
+    },
+    getLongestStreak(state) {
+        const days = uniqueSortedDays(state.qtEntries);
+        if (days.length === 0) return 0;
+
+        let longest = 1;
+        let current = 1;
+        for (let i = 1; i < days.length; i++) {
+            if (days[i] - days[i - 1] === 1) {
+                current++;
+                longest = Math.max(longest, current);
+            } else {
+                current = 1;
+            }
+        }
+        return longest;
+    },
+    hasJournaledToday(state) {
+        const days = uniqueSortedDays(state.qtEntries);
+        if (days.length === 0) return false;
+        return days[days.length - 1] === toDayIndex(new Date());
     }
 }

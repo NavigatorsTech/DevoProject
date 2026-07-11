@@ -27,8 +27,13 @@
           </v-card>
         </v-col>
       </v-row>
+      <v-row v-if="isAuthenticated" justify="center">
+        <v-col cols="12" md="10" class="pb-0">
+          <StreakCard class="mx-auto" />
+        </v-col>
+      </v-row>
       <v-row justify="center">
-        <v-col cols="12" md="10" align-self="center">
+        <v-col cols="12" md="10" align-self="center" class="pt-2">
           <Passage
             :passageDate="date"
             :passageContents="getPassageContents"
@@ -46,8 +51,20 @@
 
 <script>
 import Passage from "@/components/Passage";
+import StreakCard from "@/components/StreakCard";
 
 export default {
+  asyncData(context) {
+    if (!context.store.getters["userStore/isAuthenticated"]) return;
+    var userID = context.store.getters["userStore/getUserID"];
+    return context.app.$axios.$get("/qtJournalEntries", {
+      params: {
+        creatorEmail: userID,
+      },
+    }).then((data) => {
+      context.store.dispatch("journalStore/storeAllQTEntries", data);
+    }).catch(() => {}); // non-fatal: home page must still render for the passage
+  },
   mounted() {
     // To ensure that if there were a refresh, correct passage from plan is shown
     this.$store.dispatch("planStore/getPlanChosen").then(() => {
@@ -61,6 +78,7 @@ export default {
   },
   components: {
     Passage,
+    StreakCard,
   },
   middleware: ["checkAuth"],
   computed: {
