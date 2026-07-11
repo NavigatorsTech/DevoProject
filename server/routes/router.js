@@ -63,8 +63,8 @@ router.get("/passages", async function (req, res, next) {
 router.post("/users", async function (req, res, next) {
   if (req.body.isLogin) {
     try {
-      await AuthService.getUser(req.body.id, req.body.pwd, (result = async (data) => {
-        return res.send(data);
+      await AuthService.getUser(req.body.id, req.body.pwd, (result = (data) => {
+        ensureUser(req.body.id, () => res.send(data));
       }));
     } catch (err) {
       logger.error("SERVER ROUTER: Error after calling AuthService -> " + err);
@@ -73,17 +73,7 @@ router.post("/users", async function (req, res, next) {
   } else {
     try {
       await AuthService.createUser(req.body.id, req.body.pwd, (result = (data) => {
-        PlanModel.findOne({ planName: "--- Default Nav Plan ---" }, (err, returnedPlan) => {
-          if (err) {
-            logger.error("SERVER ROUTER: Error in getting default plan ID : " + err);
-          } else {
-            UserModel.create({
-              email: req.body.id,
-              planChosen: returnedPlan._id, // Set all new users with default plan initially
-            });
-          }
-        });
-        return res.send(data);
+        ensureUser(req.body.id, () => res.send(data));
       }));
     } catch (err) {
       logger.error("SERVER ROUTER: Error after calling AuthService -> " + err);
@@ -98,32 +88,7 @@ router.post("/users", async function (req, res, next) {
 router.post("/users/google", async function (req, res, next) {
   try {
     var email = await AuthService.getEmailFromToken(req);
-    UserModel.findOne({ email: email }, (err, existingUser) => {
-      if (err) {
-        logger.error("SERVER ROUTER: Error looking up Google user : " + err);
-        return res.sendStatus(500);
-      }
-      if (existingUser) {
-        return res.sendStatus(200);
-      }
-      PlanModel.findOne({ planName: "--- Default Nav Plan ---" }, (err, returnedPlan) => {
-        if (err || returnedPlan == null) {
-          logger.error("SERVER ROUTER: Error in getting default plan ID for Google user : " + err);
-          return res.sendStatus(500);
-        }
-        UserModel.create({
-          email: email,
-          planChosen: returnedPlan._id, // Set all new users with default plan initially
-        }, (err) => {
-          if (err) {
-            logger.error("SERVER ROUTER: Error creating Google user : " + err);
-            return res.sendStatus(500);
-          }
-          logger.info("SERVER ROUTER: Google user " + email + " provisioned");
-          return res.sendStatus(201);
-        });
-      });
-    });
+    ensureUser(email, () => res.sendStatus(200));
   } catch (err) {
     logger.error("SERVER ROUTER: Error authenticating Google user -> " + err);
     return res.sendStatus(401);
@@ -375,4 +340,33 @@ function getDefaultPassage() {
   var day = new Date().getDate();
   var s = "Proverbs " + day;
   return s;
+}
+
+// Ensure a Mongo User doc exists for this email, creating one with the default
+// plan if missing. Idempotent. Always invokes callback() when done (errors logged).
+function ensureUser(email, callback) {
+  var normalizedEmail = (email || "").toLowerCase();
+  UserModel.findOne({ email: normalizedEmail }, (err, existingUser) => {
+    if (err) {
+      logger.error("SERVER ROUTER: Error looking up user : " + err);
+      return callback();
+    }
+    if (existingUser) {
+      return callback();
+    }
+    PlanModel.findOne({ planName: "--- Default Nav Plan ---" }, (err, returnedPlan) => {
+      if (err || returnedPlan == null) {
+        logger.error("SERVER ROUTER: Error getting default plan ID for new user : " + err);
+        return callback();
+      }
+      UserModel.create({
+        email: normalizedEmail,
+        planChosen: returnedPlan._id, // Set all new users with default plan initially
+      }, (err) => {
+        if (err) logger.error("SERVER ROUTER: Error creating user : " + err);
+        else logger.info("SERVER ROUTER: User " + normalizedEmail + " provisioned");
+        return callback();
+      });
+    });
+  });
 }
