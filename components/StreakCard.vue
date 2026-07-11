@@ -1,13 +1,13 @@
 <template>
   <v-card v-if="currentStreak > 0 || longestStreak > 0" class="mx-auto" outlined>
     <v-card-title class="d-flex align-center flex-wrap">
-      <v-icon color="secondary" left>mdi-fire</v-icon>
-      <div class="d-flex align-baseline flex-wrap">
+      <div class="d-flex align-center">
+        <v-icon color="secondary" left>mdi-fire</v-icon>
         <span>{{ currentStreak }} day{{ currentStreak === 1 ? "" : "s" }}</span>
-        <span class="text-body-2 text--secondary ml-3">{{ streakMessage }}</span>
       </div>
+      <span class="text-body-2 text--secondary streak-message">{{ streakMessage }}</span>
       <v-spacer></v-spacer>
-      <v-chip v-if="longestStreak > currentStreak" small color="secondary" outlined>Best: {{ longestStreak }} day{{ longestStreak === 1 ? "" : "s" }}</v-chip>
+      <v-chip v-if="longestStreak > currentStreak" small color="secondary" outlined class="streak-chip">Best: {{ longestStreak }} day{{ longestStreak === 1 ? "" : "s" }}</v-chip>
     </v-card-title>
     <v-card-actions v-if="!journaledToday" class="pt-0">
       <v-btn to="/journalList/createEntry" nuxt exact color="primary" text>Write today's thoughts</v-btn>
@@ -15,11 +15,11 @@
   </v-card>
   <v-card v-else class="mx-auto" outlined>
     <v-card-title class="d-flex align-center flex-wrap">
-      <v-icon color="secondary" left>mdi-fire</v-icon>
-      <div class="d-flex align-baseline flex-wrap">
+      <div class="d-flex align-center">
+        <v-icon color="secondary" left>mdi-fire</v-icon>
         <span>Start your streak</span>
-        <span class="text-body-2 text--secondary ml-3">Write your first QT thoughts today to begin!</span>
       </div>
+      <span class="text-body-2 text--secondary streak-message">Write your first QT thoughts today to begin!</span>
     </v-card-title>
     <v-card-actions class="pt-0">
       <v-btn to="/journalList/createEntry" nuxt exact color="primary" text>Write QT Thoughts</v-btn>
@@ -51,3 +51,19 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.streak-message {
+  margin-left: 12px;
+}
+@media (max-width: 599px) {
+  .streak-message {
+    flex-basis: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+  }
+  .streak-chip {
+    margin-top: 8px;
+  }
+}
+</style>
