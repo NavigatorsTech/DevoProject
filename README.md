@@ -102,8 +102,8 @@ MONGOOSE_SECRET=<any random string, e.g. `openssl rand -hex 32` — encrypts jou
 CACHE_TTL=3600
 LOCAL_SSLKEY=./localhost-key.pem
 LOCAL_SSLCERT=./localhost.pem
-BASE_URL=https://127.0.0.1:3000
-BROWSER_BASE_URL=https://127.0.0.1:3000
+BASE_URL=https://localhost:3000
+BROWSER_BASE_URL=https://localhost:3000
 ```
 
 To point the client at a different Firebase project than production (`qtapp-3b06e`) — e.g. a personal dev project — also set:
@@ -130,7 +130,7 @@ Both `.env` and `fb-service-account.json` are git-ignored — never commit them.
 ### 6. Run it
 
 ```bash
-# serve with hot reload at https://127.0.0.1:3000
+# serve with hot reload at https://localhost:3000
 npm run dev
 
 # build for production and launch server
