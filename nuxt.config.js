@@ -93,13 +93,12 @@ module.exports = {
   },
   firebase: {
     config: {
-      apiKey: 'AIzaSyAOYahacsrT-2O_T__716n1Kw6fX9X3Zzk',
-      authDomain: 'qtapp-3b06e.firebaseapp.com',
-      databaseURL: 'https://qtapp-3b06e.firebaseio.com',
-      projectId: 'qtapp-3b06e',
-      storageBucket: 'qtapp-3b06e.appspot.com',
-      messagingSenderId: '614414854141',
-      appId: '1:614414854141:web:fa63f8d748856cea151b94'
+      apiKey: process.env.FIREBASE_API_KEY || 'AIzaSyAOYahacsrT-2O_T__716n1Kw6fX9X3Zzk',
+      authDomain: process.env.FIREBASE_AUTH_DOMAIN || 'qtapp-3b06e.firebaseapp.com',
+      projectId: process.env.FIREBASE_PROJECT_ID || 'qtapp-3b06e',
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'qtapp-3b06e.appspot.com',
+      messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '614414854141',
+      appId: process.env.FIREBASE_APP_ID || '1:614414854141:web:fa63f8d748856cea151b94'
     },
     services: {
       auth: true

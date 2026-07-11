@@ -10,8 +10,7 @@ var logger = log4js.getLogger();
 var AuthService = {
   init: function () {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      databaseURL: "https://qtapp-3b06e.firebaseio.com"
+      credential: admin.credential.cert(serviceAccount)
     });
   },
   createUser: async function (id, pwd, callback) {
