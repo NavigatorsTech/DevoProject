@@ -52,17 +52,90 @@ Project work progress can be seen in the github Projects Tab. Welcome comments f
 - Updated to work with MongoDB 5.0
 - Functionality to copy journal entries to clipboard
 
-## Build Setup
+## Local Development Setup
 
-``` bash
-# install dependencies
-$ npm install
+The app is an Express + Nuxt server that only serves over HTTPS (even locally), and depends on MongoDB, Firebase Auth, and the ESV Bible API. None of this is configured out of the box — here's how to stand it up on your machine.
 
-# serve with hot reload at localhost:3000
-$ npm run dev
+### Prerequisites
+
+- Node.js + npm
+- [Docker](https://www.docker.com/) (for a local MongoDB instance)
+- OpenSSL (for a local TLS certificate — ships with macOS/Linux)
+- Access to the project's Firebase console (to generate an Admin SDK service account key)
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Start a local MongoDB
+
+```bash
+docker compose up -d
+```
+
+This starts a `mongo` container on `localhost:27017` and seeds the `--- Default Nav Plan ---` document (see `docker/mongo-init.js`) that new-user registration and the "today's passage" route both depend on.
+
+### 3. Generate a local TLS certificate
+
+`server/index.js` reads `LOCAL_SSLKEY`/`LOCAL_SSLCERT` and refuses to start without them:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes \
+  -keyout localhost-key.pem -out localhost.pem -days 825 \
+  -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+Your browser will warn about the self-signed cert on first visit — that's expected, click through it.
+
+### 4. Create a `.env` file
+
+Copy the template below into a `.env` file at the repo root (loaded automatically in dev via `dotenv`):
+
+```bash
+MONGODB_ACCESS=mongodb://localhost:27017/qtapp
+ESVAPI_KEY=<your ESV API key — free at https://api.esv.org>
+FB_KEY=<Firebase project's Web API key>
+MONGOOSE_SECRET=<any random string, e.g. `openssl rand -hex 32` — encrypts journal entries at rest>
+CACHE_TTL=3600
+LOCAL_SSLKEY=./localhost-key.pem
+LOCAL_SSLCERT=./localhost.pem
+BASE_URL=https://127.0.0.1:3000
+BROWSER_BASE_URL=https://127.0.0.1:3000
+```
+
+To point the client at a different Firebase project than production (`qtapp-3b06e`) — e.g. a personal dev project — also set:
+
+```bash
+FIREBASE_API_KEY=<web app apiKey>
+FIREBASE_AUTH_DOMAIN=<project-id>.firebaseapp.com
+FIREBASE_PROJECT_ID=<project-id>
+FIREBASE_STORAGE_BUCKET=<web app storageBucket>
+FIREBASE_MESSAGING_SENDER_ID=<web app messagingSenderId>
+FIREBASE_APP_ID=<web app appId>
+```
+
+These are read in `nuxt.config.js` and fall back to the production values when unset, so leaving them out targets production's Firebase project by default.
+
+### 5. Add the Firebase Admin service account
+
+`server/services/auth.js` requires `fb-service-account.json` at the repo root to verify auth tokens server-side. Generate one from the Firebase Console for whichever project you're targeting (must match the project behind `FB_KEY` / `FIREBASE_PROJECT_ID` above):
+
+Project Settings → Service Accounts → Generate new private key → save as `fb-service-account.json` in the repo root.
+
+Both `.env` and `fb-service-account.json` are git-ignored — never commit them.
+
+### 6. Run it
+
+```bash
+# serve with hot reload at https://127.0.0.1:3000
+npm run dev
 
 # build for production and launch server
-$ npm run build
-$ npm run start
+npm run build
+npm run start
+```
 
 Created using Nuxt, check out [Nuxt.js docs](https://nuxtjs.org).
