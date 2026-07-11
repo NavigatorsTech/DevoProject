@@ -116,7 +116,7 @@ export default {
       if (this.errorOccured) {
         this.snack = true;
         this.snackColor = "error";
-        this.snackText = "Authentication failed";
+        this.snackText = this.$store.getters["userStore/getErrorMessage"];
         this.$store.dispatch("userStore/clearError");
       }
     }

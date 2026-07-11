@@ -197,5 +197,11 @@ export const getters = {
     },
     errorOccured(state) {
         return state.error;
+    },
+    getErrorMessage(state) {
+        if (state.error && state.error.response && state.error.response.status === 409) {
+            return "An account already exists for this email. Try logging in, or use Sign in with Google.";
+        }
+        return "Authentication failed";
     }
 }

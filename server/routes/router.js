@@ -77,6 +77,10 @@ router.post("/users", async function (req, res, next) {
       }));
     } catch (err) {
       logger.error("SERVER ROUTER: Error after calling AuthService -> " + err);
+      var identityToolkitReason = err.response && err.response.data && err.response.data.error && err.response.data.error.message;
+      if (identityToolkitReason === "EMAIL_EXISTS") {
+        return res.status(409).send("EMAIL_EXISTS");
+      }
       return res.status(500).send("Unable to register new user");
     }
   }
