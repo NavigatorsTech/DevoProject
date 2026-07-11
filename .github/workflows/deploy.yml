@@ -36,19 +36,31 @@ jobs:
           script: |
             set -euo pipefail
             cd /QTNuxtProject
+
+            restart_app() {
+              pm2 delete ecosystem.config.js 2>/dev/null || true
+              if command -v fuser >/dev/null 2>&1; then
+                fuser -k 3000/tcp 2>/dev/null || true
+              elif command -v lsof >/dev/null 2>&1; then
+                lsof -ti tcp:3000 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+              fi
+              sleep 2
+              pm2 start ecosystem.config.js
+            }
+
             PREV=$(git rev-parse HEAD)
             git fetch --prune origin master
             git reset --hard origin/master
             npm ci
             npm run build
-            pm2 startOrReload ecosystem.config.js
+            restart_app
             sleep 5
             if ! curl -kfsS https://127.0.0.1:3000/ > /dev/null; then
               echo "Health check failed, rolling back to $PREV"
               git reset --hard "$PREV"
               npm ci
               npm run build
-              pm2 startOrReload ecosystem.config.js
+              restart_app
               exit 1
             fi
             echo "Deploy successful at $(git rev-parse --short HEAD)"
