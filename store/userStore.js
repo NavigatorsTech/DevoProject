@@ -70,6 +70,52 @@ export const actions = {
     clearError(vuexContext) {
         vuexContext.commit('clearError');
     },
+    async authenticateWithGoogle(vuexContext) {
+        try {
+            const provider = new this.$fireModule.auth.GoogleAuthProvider();
+            const result = await this.$fire.auth.signInWithPopup(provider);
+            const idToken = await result.user.getIdToken();
+            const idTokenResult = await result.user.getIdTokenResult();
+            const email = result.user.email;
+            const expiringTimeInMS = new Date(idTokenResult.expirationTime).getTime();
+
+            // Attach the token to axios directly (without committing to Vuex yet) so the
+            // verification call below is authenticated, but isAuthenticated doesn't flip
+            // to true - and trigger the redirect watcher - before cookies are written.
+            this.$axios.setToken(idToken, 'Bearer');
+
+            // Verify token server-side and provision a User doc for first-time Google users
+            await this.$axios.$post("/users/google");
+
+            // From here on, no more awaits: cookies and the Vuex commits that flip
+            // isAuthenticated happen in one synchronous block so a same-tick redirect
+            // (via the isAuthenticated watcher) always sees consistent cookie state.
+            Cookie.set('jwt', idToken, {
+                sameSite: 'lax',
+                expires: new Date(expiringTimeInMS),
+                secure: true
+            });
+            Cookie.set('expirationTime', expiringTimeInMS, {
+                sameSite: 'lax',
+                expires: new Date(expiringTimeInMS),
+                secure: true
+            });
+            Cookie.set('qtAppID', email, {
+                sameSite: 'lax',
+                expires: new Date(expiringTimeInMS),
+                secure: true
+            });
+            vuexContext.commit('setToken', idToken);
+            vuexContext.commit('setExpiryTime', expiringTimeInMS);
+            vuexContext.commit('setUserID', email);
+        } catch (e) {
+            vuexContext.commit('clearToken');
+            vuexContext.commit('clearExpiryTime');
+            vuexContext.commit('clearUserID');
+            vuexContext.commit('setError', e);
+            console.log(e);
+        }
+    },
     checkCookie(vuexContext, req) {
         let token;
         let expirationTime;

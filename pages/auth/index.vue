@@ -28,6 +28,13 @@
         <v-spacer></v-spacer>
         <v-btn @click="login" color="info">Login</v-btn>
       </v-card-actions>
+      <v-divider></v-divider>
+      <v-card-actions>
+        <v-btn @click="loginWithGoogle" block outlined>
+          <v-icon left>mdi-google</v-icon>
+          Sign in with Google
+        </v-btn>
+      </v-card-actions>
     </v-card>
     <center>
       <a><v-card-text @click="validate()">Forgot Password?</v-card-text></a>
@@ -70,6 +77,9 @@ export default {
         id: this.email,
         pwd: this.password
       });
+    },
+    loginWithGoogle() {
+      this.$store.dispatch("userStore/authenticateWithGoogle");
     },
     async passwordReset() {
       try {

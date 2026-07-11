@@ -81,6 +81,26 @@ var AuthService = {
     }
     // console.log(req.headers['cookie']);
   },
+  // Verifies a client-supplied Firebase idToken (e.g. from Google sign-in) and
+  // returns the associated email. Throws if the token is missing or invalid.
+  getEmailFromToken: async function (req) {
+    const bearerHeader = req.headers["authorization"];
+
+    if (!bearerHeader) {
+      logger.error("AUTH: Missing token in getEmailFromToken");
+      throw new Error("Not Authorized!");
+    }
+
+    const bearerToken = bearerHeader.split(" ")[1];
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(bearerToken);
+      logger.info("AUTH: Google user token verified");
+      return decodedToken.email;
+    } catch (error) {
+      logger.error("AUTH: Token Error");
+      throw new Error("Not Authorized!");
+    }
+  },
   checkPlanOwnership: async function (req, planCreator, isOwner) {
     const bearerHeader = req.headers["authorization"];
 

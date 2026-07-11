@@ -92,6 +92,44 @@ router.post("/users", async function (req, res, next) {
   }
 });
 
+// Google sign-in: client authenticates via Firebase popup and sends the idToken
+// as a Bearer header. Verify it here and provision a User doc (with the default
+// plan) for first-time Google users, mirroring the register branch above.
+router.post("/users/google", async function (req, res, next) {
+  try {
+    var email = await AuthService.getEmailFromToken(req);
+    UserModel.findOne({ email: email }, (err, existingUser) => {
+      if (err) {
+        logger.error("SERVER ROUTER: Error looking up Google user : " + err);
+        return res.sendStatus(500);
+      }
+      if (existingUser) {
+        return res.sendStatus(200);
+      }
+      PlanModel.findOne({ planName: "--- Default Nav Plan ---" }, (err, returnedPlan) => {
+        if (err || returnedPlan == null) {
+          logger.error("SERVER ROUTER: Error in getting default plan ID for Google user : " + err);
+          return res.sendStatus(500);
+        }
+        UserModel.create({
+          email: email,
+          planChosen: returnedPlan._id, // Set all new users with default plan initially
+        }, (err) => {
+          if (err) {
+            logger.error("SERVER ROUTER: Error creating Google user : " + err);
+            return res.sendStatus(500);
+          }
+          logger.info("SERVER ROUTER: Google user " + email + " provisioned");
+          return res.sendStatus(201);
+        });
+      });
+    });
+  } catch (err) {
+    logger.error("SERVER ROUTER: Error authenticating Google user -> " + err);
+    return res.sendStatus(401);
+  }
+});
+
 // Send with user id for plan chosen by user
 router.get("/users/planChosen", async function (req, res, next) {
   UserModel.findOne({ email: req.query.userID }, (err, returnedUser) => {
