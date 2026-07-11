@@ -4,7 +4,7 @@
       <v-card>
         <v-card-title>{{ reference }}</v-card-title>
         <v-card-subtitle>{{ passageDate | dateFormatter }}</v-card-subtitle>
-        <v-card-text v-html="passage" class="text--primary" id="verse-number-sup"></v-card-text>
+        <v-card-text v-html="passage" class="text--primary" id="verse-number-sup" style="white-space: pre-wrap;"></v-card-text>
       </v-card>
     </v-flex>
   </v-layout>
