@@ -8,7 +8,7 @@ export const state = () => ({
 // Normalize any date (Date object, ISO string, etc.) to a DST-safe integer
 // day index based on the *local* calendar day, so consecutive days always
 // differ by exactly 1 regardless of daylight-saving shifts.
-function toDayIndex(input) {
+export function toDayIndex(input) {
     const d = new Date(input);
     return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
 }
@@ -57,8 +57,13 @@ export const actions = {
         }).then(response => {
             if (response === 'Created') { // 201
                 vuexContext.commit('addEntry', entrySubmitted);
+                return true;
             }
-        }).catch(e => console.log(e));
+            return false;
+        }).catch(e => {
+            console.log(e);
+            return false;
+        });
     },
     storeAllQTEntries(vuexContext, entries) {
         vuexContext.commit('setAllQTEntries', entries);
@@ -72,8 +77,13 @@ export const actions = {
        }).then(response => {
            if (response === 'OK') { // 200
                vuexContext.commit('updateEntry', entrySubmitted);
+               return true;
            }
-       }).catch(e => console.log(e));
+           return false;
+       }).catch(e => {
+           console.log(e);
+           return false;
+       });
     },
     async deleteEntry(vuexContext, jID) {
         return await this.$axios.delete('/qtJournalEntries', {

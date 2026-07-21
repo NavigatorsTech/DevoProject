@@ -1,6 +1,16 @@
 <template>
   <div>
-    <QTJournalEditor ref="QTJournalEditorComponent" :entryPassageContents="passageContents" :entryDate="retrievedEntry.date" :entryReference="retrievedEntry.passageReference" :propEntryTitle="retrievedEntry.title" :propEntryThoughts="retrievedEntry.thoughts" :propEntryAppImp="retrievedEntry.applicationImplication"></QTJournalEditor>
+    <QTJournalEditor
+      ref="QTJournalEditorComponent"
+      :entryPassageContents="passageContents"
+      :entryDate="retrievedEntry.date"
+      :entryReference="retrievedEntry.passageReference"
+      :propEntryTitle="retrievedEntry.title"
+      :propEntryThoughts="retrievedEntry.thoughts"
+      :propEntryAppImp="retrievedEntry.applicationImplication"
+      :draftKey="'qtDraft:edit:' + id"
+      @draft-restored="onDraftRestored"
+    ></QTJournalEditor>
     <v-btn class="mr-1" @click="cancel" color="warning">Cancel</v-btn>
     <v-btn class="mr-1" @click="copyContents" color="primary">Share</v-btn>
     <v-dialog v-model="updateDialog" persistent max-width="290" dark>
@@ -35,7 +45,8 @@
 
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">
       {{ snackText }}
-      <v-btn text @click="snack = false">Close</v-btn>
+      <v-btn v-if="showDiscardDraftButton" text @click="discardDraftFromSnackbar">Discard</v-btn>
+      <v-btn text @click="snack = false; showDiscardDraftButton = false;">Close</v-btn>
     </v-snackbar>
   </div>
 </template>
@@ -78,6 +89,19 @@ export default {
   components: {
     QTJournalEditor,
   },
+  // Fires only on in-app navigation away from this route (Cancel, a
+  // successful Update, Delete, clicking elsewhere in the nav) - NOT on a
+  // hard refresh or tab close, since those tear the page down entirely
+  // rather than going through vue-router. So: deliberately leaving always
+  // discards the draft (the next visit shows the official saved entry),
+  // while an accidental refresh/close still recovers it, since the draft
+  // was never cleared in that case.
+  beforeRouteLeave(to, from, next) {
+    if (this.$refs.QTJournalEditorComponent) {
+      this.$refs.QTJournalEditorComponent.clearDraft();
+    }
+    next();
+  },
   data() {
     return {
       id: this.$route.params.jid,
@@ -85,7 +109,8 @@ export default {
       deleteDialog: false,
       snack: false,
       snackColor: "",
-      snackText: ""
+      snackText: "",
+      showDiscardDraftButton: false,
     };
   },
   computed: {
@@ -105,10 +130,22 @@ export default {
     },
   },
   methods: {
+    onDraftRestored: function () {
+      this.snack = true;
+      this.snackColor = "info";
+      this.snackText = "Restored your unsaved draft";
+      this.showDiscardDraftButton = true;
+    },
+    discardDraftFromSnackbar: function () {
+      this.$refs.QTJournalEditorComponent.discardDraft();
+      this.snack = false;
+      this.showDiscardDraftButton = false;
+    },
     copyContents: function () {
       var entry = this.$refs.QTJournalEditorComponent.getEntry();
       var copyText = entry.passageReference + "\n\nTitle: " + entry.title + "\n\n" + entry.thoughts + "\n\nApplication: " + entry.applicationImplication;
       navigator.clipboard.writeText(copyText).then(() => {
+        this.showDiscardDraftButton = false;
         this.snack = true;
         this.snackColor = "success";
         this.snackText = "Copied to Clipboard";
@@ -117,17 +154,25 @@ export default {
     cancel: function () {
       this.$router.push("/journalList");
     },
-    updateEntry: function () {
+    updateEntry: async function () {
       if (this.$refs.QTJournalEditorComponent.checkValidation()) {
         var entry = this.$refs.QTJournalEditorComponent.getEntry();
 
-        this.$store.dispatch("journalStore/updateEntry", {
+        var ok = await this.$store.dispatch("journalStore/updateEntry", {
           journalID: this.id,
           title: entry.title,
           thoughts: entry.thoughts,
           applicationImplication: entry.applicationImplication,
         });
-        this.$router.push("/journalList");
+
+        if (ok) {
+          this.$router.push("/journalList");
+        } else {
+          this.showDiscardDraftButton = false;
+          this.snack = true;
+          this.snackColor = "error";
+          this.snackText = "Couldn't save your changes — your draft is safe, please try again.";
+        }
       }
     },
     deleteEntry: function () {

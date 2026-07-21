@@ -182,6 +182,15 @@ export const actions = {
         Cookie.remove('lastActiveAt');
         vuexContext.dispatch("planStore/clearPlans", '', { root: true });
         vuexContext.dispatch("journalStore/clearEntries", '', { root: true });
+        // Sweep any autosaved journal drafts too, so a shared-device logout
+        // doesn't leave one visible to the next person. logout() can run
+        // server-side (dispatched from checkCookie during SSR), so guard
+        // localStorage access to the client.
+        if (typeof window !== 'undefined' && window.localStorage) {
+            Object.keys(window.localStorage)
+                .filter(key => key.startsWith('qtDraft:'))
+                .forEach(key => window.localStorage.removeItem(key));
+        }
         // Sign out of Firebase too, so the SDK stops silently re-issuing tokens.
         // This triggers onIdTokenChanged(null), which re-enters logout - harmless,
         // this action is idempotent.
