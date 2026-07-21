@@ -60,41 +60,16 @@ router.get("/passages", async function (req, res, next) {
   return res.send(p);
 });
 
-router.post("/users", async function (req, res, next) {
-  if (req.body.isLogin) {
-    try {
-      await AuthService.getUser(req.body.id, req.body.pwd, (result = (data) => {
-        ensureUser(req.body.id, () => res.send(data));
-      }));
-    } catch (err) {
-      logger.error("SERVER ROUTER: Error after calling AuthService -> " + err);
-      return res.status(500).send("Authentication Failed");
-    }
-  } else {
-    try {
-      await AuthService.createUser(req.body.id, req.body.pwd, (result = (data) => {
-        ensureUser(req.body.id, () => res.send(data));
-      }));
-    } catch (err) {
-      logger.error("SERVER ROUTER: Error after calling AuthService -> " + err);
-      var identityToolkitReason = err.response && err.response.data && err.response.data.error && err.response.data.error.message;
-      if (identityToolkitReason === "EMAIL_EXISTS") {
-        return res.status(409).send("EMAIL_EXISTS");
-      }
-      return res.status(500).send("Unable to register new user");
-    }
-  }
-});
-
-// Google sign-in: client authenticates via Firebase popup and sends the idToken
-// as a Bearer header. Verify it here and provision a User doc (with the default
-// plan) for first-time Google users, mirroring the register branch above.
-router.post("/users/google", async function (req, res, next) {
+// Login/register now happen client-side against the Firebase client SDK
+// (email/password and Google both). This endpoint just verifies the
+// resulting idToken (sent as a Bearer header) and provisions a User doc
+// (with the default plan) for first-time users of either auth method.
+router.post("/users/verify", async function (req, res, next) {
   try {
     var email = await AuthService.getEmailFromToken(req);
     ensureUser(email, () => res.sendStatus(200));
   } catch (err) {
-    logger.error("SERVER ROUTER: Error authenticating Google user -> " + err);
+    logger.error("SERVER ROUTER: Error verifying user -> " + err);
     return res.sendStatus(401);
   }
 });

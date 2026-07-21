@@ -58,7 +58,7 @@ Client sign-in/register from `pages/auth/index.vue` → `store/userStore.js` `au
 
 ## Environment & secrets (all via env / untracked files, none committed)
 
-Required at runtime (not in repo): `MONGODB_ACCESS`, `ESVAPI_KEY`, `FB_KEY`, `MONGOOSE_SECRET`, `NODE_ENV`, TLS cert/key paths (`LOCAL_SSLKEY`/`LOCAL_SSLCERT` in dev, `SSLKEY`/`SSLCERT` in prod), `BASE_URL`/`BROWSER_BASE_URL`, optional `CACHE_TTL`. Also needs `fb-service-account.json` (Firebase Admin creds) at repo root — git-ignored, must be supplied at deploy time or `authService.init()` fails. `.env` is loaded in dev only (`nodemon -r dotenv/config`).
+Required at runtime (not in repo): `MONGODB_ACCESS`, `ESVAPI_KEY`, `MONGOOSE_SECRET`, `NODE_ENV`, TLS cert/key paths (`LOCAL_SSLKEY`/`LOCAL_SSLCERT` in dev, `SSLKEY`/`SSLCERT` in prod), `BASE_URL`/`BROWSER_BASE_URL`, optional `CACHE_TTL`. Also needs `fb-service-account.json` (Firebase Admin creds) at repo root — git-ignored, must be supplied at deploy time or `authService.init()` fails. `.env` is loaded in dev only (`nodemon -r dotenv/config`). (`FB_KEY`, the Identity Toolkit REST API key, is no longer used — auth login/register happens client-side via the Firebase SDK; the server only verifies ID tokens via `firebase-admin`.)
 
 ## Conventions & gotchas
 

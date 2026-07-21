@@ -36,7 +36,8 @@ module.exports = {
   plugins: [
     '~/plugins/gtag',
     '~plugins/date-filter.js',
-    '@/plugins/axios'
+    '@/plugins/axios',
+    '@/plugins/firebase-token-sync.client'
   ],
   /*
   ** Nuxt.js dev-modules

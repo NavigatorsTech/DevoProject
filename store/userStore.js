@@ -37,35 +37,51 @@ export const mutations = {
 }
 
 export const actions = {
+    // Single write path for token/cookie state. Called right after login/register,
+    // and by the firebase-token-sync plugin's onIdTokenChanged listener whenever
+    // Firebase silently refreshes the token (initial load, ~5min before expiry,
+    // tab focus).
+    applyToken(vuexContext, { token, expiry, userID }) {
+        vuexContext.commit('setToken', token);
+        vuexContext.commit('setExpiryTime', expiry);
+        vuexContext.commit('setUserID', userID);
+        Cookie.set('jwt', token, {
+            sameSite: 'lax',
+            expires: new Date(expiry),
+            secure: true
+        }); // sameSite only allows cookies to be attached to get requests for cross origin requests
+        Cookie.set('expirationTime', expiry, {
+            sameSite: 'lax',
+            expires: new Date(expiry),
+            secure: true
+        });
+        Cookie.set('qtAppID', userID, {
+            sameSite: 'lax',
+            expires: new Date(expiry),
+            secure: true
+        });
+    },
     async authenticateUser(vuexContext, authData) {
-        return await this.$axios.$post("/users", {
-            id: authData.id,
-            pwd: authData.pwd,
-            isLogin: authData.isLogin
-        }).then(result => {
-            vuexContext.commit('setToken', result.idToken);
-            var expiringTimeInMS = new Date().getTime() + Number.parseInt(result.exTime) * 1000;
-            vuexContext.commit('setExpiryTime', expiringTimeInMS);
-            Cookie.set('jwt', result.idToken, {
-                sameSite: 'lax',
-                expires: new Date(expiringTimeInMS), // JS in millisecond * 1000
-                secure: true
-            }); // sameSite only allows cookies to be attached to get requests for cross origin requests
-            Cookie.set('expirationTime', expiringTimeInMS, {
-                sameSite: 'lax',
-                expires: new Date(expiringTimeInMS), // JS in millisecond * 1000
-                secure: true
-            }); // sameSite only allows cookies to be attached to get requests for cross origin requests
-            Cookie.set('qtAppID', authData.id, {
-                sameSite: 'lax',
-                expires: new Date(expiringTimeInMS), // JS in millisecond * 1000
-                secure: true
-            }); // sameSite only allows cookies to be attached to get requests for cross origin requests
-            vuexContext.commit('setUserID', authData.id);
-        }).catch(e => {
+        try {
+            if (authData.isLogin) {
+                await this.$fire.auth.signInWithEmailAndPassword(authData.id, authData.pwd);
+            } else {
+                await this.$fire.auth.createUserWithEmailAndPassword(authData.id, authData.pwd);
+            }
+
+            // Attach the token to axios directly so the verification call below is
+            // authenticated. Cookie/Vuex sync happens via onIdTokenChanged (the
+            // firebase-token-sync plugin), triggered by the sign-in/creation above.
+            const idToken = await this.$fire.auth.currentUser.getIdToken();
+            this.$axios.setToken(idToken, 'Bearer');
+
+            // Verify token server-side and provision a User doc (default plan) for
+            // first-time users.
+            await this.$axios.$post("/users/verify");
+        } catch (e) {
             vuexContext.commit('setError', e);
             console.log(e);
-        });
+        }
     },
     clearError(vuexContext) {
         vuexContext.commit('clearError');
@@ -75,39 +91,14 @@ export const actions = {
             const provider = new this.$fireModule.auth.GoogleAuthProvider();
             const result = await this.$fire.auth.signInWithPopup(provider);
             const idToken = await result.user.getIdToken();
-            const idTokenResult = await result.user.getIdTokenResult();
-            const email = result.user.email;
-            const expiringTimeInMS = new Date(idTokenResult.expirationTime).getTime();
 
-            // Attach the token to axios directly (without committing to Vuex yet) so the
-            // verification call below is authenticated, but isAuthenticated doesn't flip
-            // to true - and trigger the redirect watcher - before cookies are written.
+            // Attach the token to axios directly so the verification call below is
+            // authenticated. Cookie/Vuex sync happens via onIdTokenChanged (the
+            // firebase-token-sync plugin), triggered by signInWithPopup above.
             this.$axios.setToken(idToken, 'Bearer');
 
             // Verify token server-side and provision a User doc for first-time Google users
-            await this.$axios.$post("/users/google");
-
-            // From here on, no more awaits: cookies and the Vuex commits that flip
-            // isAuthenticated happen in one synchronous block so a same-tick redirect
-            // (via the isAuthenticated watcher) always sees consistent cookie state.
-            Cookie.set('jwt', idToken, {
-                sameSite: 'lax',
-                expires: new Date(expiringTimeInMS),
-                secure: true
-            });
-            Cookie.set('expirationTime', expiringTimeInMS, {
-                sameSite: 'lax',
-                expires: new Date(expiringTimeInMS),
-                secure: true
-            });
-            Cookie.set('qtAppID', email, {
-                sameSite: 'lax',
-                expires: new Date(expiringTimeInMS),
-                secure: true
-            });
-            vuexContext.commit('setToken', idToken);
-            vuexContext.commit('setExpiryTime', expiringTimeInMS);
-            vuexContext.commit('setUserID', email);
+            await this.$axios.$post("/users/verify");
         } catch (e) {
             vuexContext.commit('clearToken');
             vuexContext.commit('clearExpiryTime');
@@ -140,7 +131,15 @@ export const actions = {
             userID = Cookie.get("qtAppID");
         }
         if (new Date().getTime() > +expirationTime || !token) {
-            // No Token or invalid token
+            // Cookie looks expired/missing. On the client, if Firebase still has a
+            // signed-in user, don't evict yet - the firebase-token-sync plugin's
+            // onIdTokenChanged will fire a silent refresh and repopulate the cookies
+            // momentarily. Only force logout when there's truly no session to
+            // recover from (this also covers the SSR path, where `this.$fire` isn't
+            // reliably usable).
+            if (!req && this.$fire && this.$fire.auth.currentUser) {
+                return;
+            }
             vuexContext.dispatch('logout');
             return;
         }
@@ -155,13 +154,16 @@ export const actions = {
         let token;
         let expirationTime;
         let userID;
-        
+
         token = Cookie.get("jwt");
         expirationTime = Cookie.get("expirationTime");
         userID = Cookie.get("qtAppID");
 
         if (new Date().getTime() > +expirationTime || !token) {
-            // No Token or invalid token
+            // See checkCookie: give Firebase's silent refresh a chance before logging out.
+            if (this.$fire && this.$fire.auth.currentUser) {
+                return;
+            }
             vuexContext.dispatch('logout');
             return;
         }
@@ -169,7 +171,7 @@ export const actions = {
         vuexContext.commit("setExpiryTime", expirationTime);
         vuexContext.commit("setUserID", userID);
     },
-    logout(vuexContext) {
+    async logout(vuexContext) {
         // Clearing everthing for logout just in case
         vuexContext.commit('clearToken');
         vuexContext.commit('clearExpiryTime');
@@ -177,8 +179,15 @@ export const actions = {
         Cookie.remove('jwt');
         Cookie.remove('expirationTime');
         Cookie.remove('qtAppID');
+        Cookie.remove('lastActiveAt');
         vuexContext.dispatch("planStore/clearPlans", '', { root: true });
         vuexContext.dispatch("journalStore/clearEntries", '', { root: true });
+        // Sign out of Firebase too, so the SDK stops silently re-issuing tokens.
+        // This triggers onIdTokenChanged(null), which re-enters logout - harmless,
+        // this action is idempotent.
+        if (this.$fire && this.$fire.auth.currentUser) {
+            await this.$fire.auth.signOut();
+        }
     }
 }
 
@@ -199,9 +208,21 @@ export const getters = {
         return state.error;
     },
     getErrorMessage(state) {
-        if (state.error && state.error.response && state.error.response.status === 409) {
-            return "An account already exists for this email. Try logging in, or use Sign in with Google.";
+        const code = state.error && state.error.code;
+        switch (code) {
+            case 'auth/email-already-in-use':
+                return "An account already exists for this email. Try logging in, or use Sign in with Google.";
+            case 'auth/wrong-password':
+            case 'auth/invalid-credential':
+                return "Incorrect email or password.";
+            case 'auth/user-not-found':
+                return "No account found for that email.";
+            case 'auth/weak-password':
+                return "Password is too weak - please use at least 6 characters.";
+            case 'auth/invalid-email':
+                return "That doesn't look like a valid email address.";
+            default:
+                return "Authentication failed";
         }
-        return "Authentication failed";
     }
 }
