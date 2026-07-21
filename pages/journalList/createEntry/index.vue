@@ -9,14 +9,18 @@
       :draftSameDayOnly="true"
       @draft-restored="onDraftRestored"
     ></QTJournalEditor>
-    <v-btn class="mr-1" @click="cancel" color="warning">Cancel</v-btn>
-    <v-btn class="mr-1" @click="copyContents" color="primary">Share</v-btn>
-    <v-btn @click="submit" color="success">Save</v-btn>
+    <div class="d-flex flex-wrap">
+      <v-btn class="ma-1" @click="cancel" color="warning">Cancel</v-btn>
+      <v-btn class="ma-1" @click="copyContents" color="primary">Share</v-btn>
+      <v-btn class="ma-1" @click="submit" color="success">Save</v-btn>
+    </div>
 
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">
       {{ snackText }}
-      <v-btn v-if="showDiscardDraftButton" text @click="discardDraftFromSnackbar">Discard</v-btn>
-      <v-btn text @click="snack = false; showDiscardDraftButton = false;">Close</v-btn>
+      <template v-slot:action="{ attrs }">
+        <v-btn v-if="showDiscardDraftButton" text v-bind="attrs" @click="discardDraftFromSnackbar">Discard</v-btn>
+        <v-btn text v-bind="attrs" @click="snack = false; showDiscardDraftButton = false;">Close</v-btn>
+      </template>
     </v-snackbar>
   </div>
 </template>

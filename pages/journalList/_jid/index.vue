@@ -11,42 +11,46 @@
       :draftKey="'qtDraft:edit:' + id"
       @draft-restored="onDraftRestored"
     ></QTJournalEditor>
-    <v-btn class="mr-1" @click="cancel" color="warning">Cancel</v-btn>
-    <v-btn class="mr-1" @click="copyContents" color="primary">Share</v-btn>
-    <v-dialog v-model="updateDialog" persistent max-width="290" dark>
-      <template v-slot:activator="{ on, attrs }">
-        <v-btn class="mr-1" v-bind="attrs" v-on="on" color="success">Update</v-btn>
-      </template>
-      <v-card>
-        <v-card-title class="headline">Just to be sure...</v-card-title>
-        <v-card-text>Are you sure you would like to update this entry?</v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="warning" text @click="updateDialog = false">Cancel</v-btn>
-          <v-btn color="success" text @click="updateEntry();updateDialog = false;">Yes</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <div class="d-flex flex-wrap">
+      <v-btn class="ma-1" @click="cancel" color="warning">Cancel</v-btn>
+      <v-btn class="ma-1" @click="copyContents" color="primary">Share</v-btn>
+      <v-dialog v-model="updateDialog" persistent max-width="290" dark>
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn class="ma-1" v-bind="attrs" v-on="on" color="success">Update</v-btn>
+        </template>
+        <v-card>
+          <v-card-title class="headline">Just to be sure...</v-card-title>
+          <v-card-text>Are you sure you would like to update this entry?</v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="warning" text @click="updateDialog = false">Cancel</v-btn>
+            <v-btn color="success" text @click="updateEntry();updateDialog = false;">Yes</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
 
-    <v-dialog v-model="deleteDialog" persistent max-width="290" dark>
-      <template v-slot:activator="{ on, attrs }">
-        <v-btn v-bind="attrs" v-on="on" color="error">Delete</v-btn>
-      </template>
-      <v-card>
-        <v-card-title class="headline">Just to be sure...</v-card-title>
-        <v-card-text>Are you sure you would like to delete this entry?</v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="warning" text @click="deleteDialog = false">Cancel</v-btn>
-          <v-btn color="success" text @click="deleteEntry()" to="/journalList" nuxt>Yes</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <v-dialog v-model="deleteDialog" persistent max-width="290" dark>
+        <template v-slot:activator="{ on, attrs }">
+          <v-btn class="ma-1" v-bind="attrs" v-on="on" color="error">Delete</v-btn>
+        </template>
+        <v-card>
+          <v-card-title class="headline">Just to be sure...</v-card-title>
+          <v-card-text>Are you sure you would like to delete this entry?</v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="warning" text @click="deleteDialog = false">Cancel</v-btn>
+            <v-btn color="success" text @click="deleteEntry()" to="/journalList" nuxt>Yes</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+    </div>
 
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">
       {{ snackText }}
-      <v-btn v-if="showDiscardDraftButton" text @click="discardDraftFromSnackbar">Discard</v-btn>
-      <v-btn text @click="snack = false; showDiscardDraftButton = false;">Close</v-btn>
+      <template v-slot:action="{ attrs }">
+        <v-btn v-if="showDiscardDraftButton" text v-bind="attrs" @click="discardDraftFromSnackbar">Discard</v-btn>
+        <v-btn text v-bind="attrs" @click="snack = false; showDiscardDraftButton = false;">Close</v-btn>
+      </template>
     </v-snackbar>
   </div>
 </template>
