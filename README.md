@@ -97,7 +97,6 @@ Copy the template below into a `.env` file at the repo root (loaded automaticall
 ```bash
 MONGODB_ACCESS=mongodb://localhost:27017/qtapp
 ESVAPI_KEY=<your ESV API key — free at https://api.esv.org>
-FB_KEY=<Firebase project's Web API key>
 MONGOOSE_SECRET=<any random string, e.g. `openssl rand -hex 32` — encrypts journal entries at rest>
 CACHE_TTL=3600
 LOCAL_SSLKEY=./localhost-key.pem
@@ -121,7 +120,7 @@ These are read in `nuxt.config.js` and fall back to the production values when u
 
 ### 5. Add the Firebase Admin service account
 
-`server/services/auth.js` requires `fb-service-account.json` at the repo root to verify auth tokens server-side. Generate one from the Firebase Console for whichever project you're targeting (must match the project behind `FB_KEY` / `FIREBASE_PROJECT_ID` above):
+`server/services/auth.js` requires `fb-service-account.json` at the repo root to verify auth tokens server-side. Generate one from the Firebase Console for whichever project you're targeting (must match the project behind `FIREBASE_PROJECT_ID` above):
 
 Project Settings → Service Accounts → Generate new private key → save as `fb-service-account.json` in the repo root.
 
