@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { type Model } from 'mongoose'
 
 const { Schema, model, models } = mongoose
 
@@ -12,4 +12,4 @@ const UserSchema = new Schema<UserDocument>({
   planChosen: { type: String, required: true, trim: true }
 })
 
-export const UserModel = models.User || model<UserDocument>('User', UserSchema)
+export const UserModel: Model<UserDocument> = models.User || model<UserDocument>('User', UserSchema)

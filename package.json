@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@mdi/font": "^7.4.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vue-tsc": "^2.2.0"
   }
 }

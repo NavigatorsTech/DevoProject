@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { type Model } from 'mongoose'
 // @ts-expect-error - no published types for mongoose-field-encryption
 import mongooseFieldEncryption from 'mongoose-field-encryption'
 
@@ -31,4 +31,4 @@ QTEntrySchema.plugin(fieldEncryption, {
   secret: useRuntimeConfig().mongooseSecret
 })
 
-export const QTEntryModel = models.QTEntry || model<QTEntryDocument>('QTEntry', QTEntrySchema)
+export const QTEntryModel: Model<QTEntryDocument> = models.QTEntry || model<QTEntryDocument>('QTEntry', QTEntrySchema)

@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { type Model } from 'mongoose'
 
 const { Schema, model, models } = mongoose
 
@@ -19,4 +19,4 @@ const PlanSchema = new Schema<PlanDocument>({
   passages: { type: Map, of: Map, required: true }
 })
 
-export const PlanModel = models.Plan || model<PlanDocument>('Plan', PlanSchema)
+export const PlanModel: Model<PlanDocument> = models.Plan || model<PlanDocument>('Plan', PlanSchema)

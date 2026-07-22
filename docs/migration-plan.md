@@ -81,7 +81,54 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     (CommonJS interop) — fixed via default-import + destructure in all three model files.
   - Deferred (not required for parity, noted in FEATURES.md §10 as a nice-to-have): IP-based
     rate limiting on the public `/api/passages/today` endpoint as defense-in-depth.
-- [ ] **Phase 2** — State Vuex → Pinia (4 stores + SSR passage preload; drop reactivity workarounds; fix addPlan)
+- [x] **Phase 2** — State Vuex → Pinia (4 stores + SSR passage preload; drop reactivity workarounds; fix addPlan)
+  - Done: `store/*.js` (Vuex) retired; `stores/{user,passage,plan,journal}.ts` (Pinia options
+    stores) added, plus `composables/useAuthFetch.ts` — a small `$fetch` wrapper that attaches
+    the current user's Bearer token, replacing `$axios.setToken`'s automatic header injection.
+    All state/getters/actions ported faithfully (state mutations folded directly into actions,
+    since Pinia has no separate mutations layer).
+  - Fixes landed: `journalStore.addEntry`'s `Vue.set(...)` and `planStore.addPlan`'s broken
+    `state.plans.$set(...)` (which threw at runtime, masked by an immediate re-fetch) both
+    become plain `push()` — Pinia/Vue 3's proxy reactivity needs neither. `createPlan`/
+    `updatePlan` now push/splice-in the server's *returned* document (Phase 1 now returns the
+    created/updated Plan, not just an ack) instead of the client-submitted input — fixes a
+    latent bug where a newly created plan had no real Mongo `_id` in local state until the next
+    full re-fetch. Curried Vuex getters (`getPlanUsingID`, `getEntryUsingID`) are now plain
+    Pinia getter-returning-functions — same call shape, no Vuex ceremony.
+  - `userStore` (now `stores/user.ts`) is the delicate piece: `applyToken` stays the single
+    token/cookie write path; `checkCookie`/`syncCookie` collapse into one `syncFromCookies()`
+    implementation now that Nuxt's `useCookie()` is SSR-universal (no more manual
+    `req.headers.cookie` string parsing vs. js-cookie branching); the Firebase-error → friendly-
+    message map and the "give Firebase's silent refresh a chance before logging out" grace
+    check are preserved exactly. Firebase client SDK calls (`signInWithEmailAndPassword`, etc.)
+    are imported directly from `firebase/auth`, with the `Auth` instance expected at
+    `useNuxtApp().$firebaseAuth` — provided by Phase 3's plugin (not yet wired, so `stores/
+    user.ts` isn't runnable end-to-end until Phase 3 lands; this mirrors how Phase 1's routes
+    weren't exercised against real prod data until they had real callers either).
+  - `nuxtServerInit`'s SSR passage-preload is deliberately **not** built as a standalone
+    mechanism now — it would be dead code with no consumer. It folds into Phase 4's `pages/
+    index.vue` `useAsyncData` call instead, which runs during SSR and achieves the same
+    "passage already in the HTML on first paint" outcome natively in Nuxt 4.
+  - Also fixed two Phase 0/1 gaps this typecheck pass surfaced: `nuxt.config.ts` used the
+    Nuxt-2-only `hid` meta key (Nuxt 4 doesn't have it — dropped, unnecessary for one tag); a
+    root `tsconfig.json` extending `.nuxt/tsconfig.json` was missing entirely (added — needed
+    for `nuxt typecheck` and editor support to work at all).
+  - Verified via `npx nuxt typecheck` (added `vue-tsc` devDependency): every new/changed file
+    (`server/models/*`, `server/api/*`, `stores/*`, `composables/useAuthFetch.ts`) is clean.
+    Caught and fixed two real bugs: Mongoose's `models.X || model(...)` recompilation-guard
+    pattern produces a call-signature union TypeScript can't resolve — fixed with an explicit
+    `Model<T>` return type annotation on each model export; and a couple of provably-safe but
+    strict-mode-flagged array index accesses in the streak logic, fixed with non-null
+    assertions (bounds are already guarded by the surrounding loop conditions).
+  - Note: vue-tsc's Vue-file language plugin currently fails to load in this project
+    (`vue-router/volar/sfc-route-blocks` plugin error, likely a version mismatch to revisit),
+    so `.vue` SFCs aren't being type-checked yet — not a regression from this phase, and expected
+    to resolve naturally once Phase 5 replaces the Vue 2 SFCs Simple type-checking would have
+    choked on anyway (Vue 2 filters, `.sync`, etc. aren't valid Vue 3 template syntax).
+  - Real runtime exercise of the Pinia layer (not just type-checking) requires an actual Vue
+    app render, since Pinia stores are context-bound to the app instance — deferred to Phase
+    4/5 once real pages call these stores, same as Phase 1's routes weren't fully live-tested
+    until they had real callers.
 - [ ] **Phase 3** — Plugins & auth wiring (firebase.client + token-sync unit, 401 retry, date helper, nuxt-gtag)
 - [ ] **Phase 4** — Middleware & routing (auth/loginCheck, bracket params, useAsyncData/useHead, NuxtPage)
 - [ ] **Phase 5** — Components & layouts (Vue 2→3 + Vuetify 2→3; PlanEditor & PassagePicker are the heavy lifts)
