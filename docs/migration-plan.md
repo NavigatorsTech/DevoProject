@@ -129,7 +129,32 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     app render, since Pinia stores are context-bound to the app instance — deferred to Phase
     4/5 once real pages call these stores, same as Phase 1's routes weren't fully live-tested
     until they had real callers.
-- [ ] **Phase 3** — Plugins & auth wiring (firebase.client + token-sync unit, 401 retry, date helper, nuxt-gtag)
+- [x] **Phase 3** — Plugins & auth wiring (firebase.client + token-sync unit, 401 retry, date helper, nuxt-gtag)
+  - Done: `plugins/{axios,date-filter,gtag,firebase-token-sync.client}.js` retired.
+    `plugins/firebase.client.ts` initializes the Firebase client SDK and ports
+    `firebase-token-sync.client.js`'s `onIdTokenChanged` + 3-day idle-cap + tab-focus-refresh
+    logic as one unit (per the FEATURES.md migration note), provides `$firebaseAuth` via
+    `useNuxtApp()`. `composables/useAuthFetch.ts` gained the 401 retry-once-then-logout
+    backstop that used to live in `plugins/axios.js`'s `$axios.onError` interceptor — force a
+    fresh ID token, retry exactly once, else log out. The dev-only TLS bypass is dropped
+    entirely (no longer needed - API is same-origin, see Phase 0/§9). `utils/dateFormatter.ts`
+    replaces the removed Vue 2 `dateFormatter` filter as a plain exported function (`nuxt-gtag`
+    module config for Google Analytics was already wired into `nuxt.config.ts` back in Phase 0).
+  - **Deliberate placement change from the plan text**: the date-formatter landed at
+    `utils/dateFormatter.ts` (pure function, Nuxt-auto-imported) rather than
+    `plugins/date-format.ts` — it needs no `defineNuxtPlugin`/injection, so `utils/` is the more
+    idiomatic Nuxt 4 home for it.
+  - Verified via `npx nuxt typecheck` (clean) and a live `npm run dev` boot: no build/plugin
+    load errors from any of the new files. Confirmed via Chrome browser navigation that a real
+    page request reaches Vue 3 SSR - but every page (via the shared `layouts/default.vue`)
+    still throws on the now-removed Vuex `$store` reference in the nav bar's auth-state check
+    (`Cannot read properties of undefined (reading 'getters')`). This is an **expected,
+    correctly-scoped-for-later** failure, not a Phase 3 regression: it's a Phase 2 consequence
+    (Vuex is gone) that only `layouts/default.vue`'s own rewrite (Phase 5) can fix, since every
+    page shares that layout. Full live auth-flow testing of `firebase.client.ts` is therefore
+    genuinely blocked until Phase 5 migrates the layout - deferred to Parity QA. Also visible in
+    dev server warnings, confirming they're pre-existing and unrelated to this phase: Vuetify 2
+    component resolution failures (`v-list-item-content`) and the old `<nuxt/>` outlet.
 - [ ] **Phase 4** — Middleware & routing (auth/loginCheck, bracket params, useAsyncData/useHead, NuxtPage)
 - [ ] **Phase 5** — Components & layouts (Vue 2→3 + Vuetify 2→3; PlanEditor & PassagePicker are the heavy lifts)
 - [ ] **Phase 6** — Data validation scripts + reverse-proxy HTTPS + PM2/CI deploy
