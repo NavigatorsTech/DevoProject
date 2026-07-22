@@ -60,35 +60,17 @@ router.get("/passages", async function (req, res, next) {
   return res.send(p);
 });
 
-router.post("/users", async function (req, res, next) {
-  if (req.body.isLogin) {
-    try {
-      await AuthService.getUser(req.body.id, req.body.pwd, (result = async (data) => {
-        return res.send(data);
-      }));
-    } catch (err) {
-      logger.error("SERVER ROUTER: Error after calling AuthService -> " + err);
-      return res.status(500).send("Authentication Failed");
-    }
-  } else {
-    try {
-      await AuthService.createUser(req.body.id, req.body.pwd, (result = (data) => {
-        PlanModel.findOne({ planName: "--- Default Nav Plan ---" }, (err, returnedPlan) => {
-          if (err) {
-            logger.error("SERVER ROUTER: Error in getting default plan ID : " + err);
-          } else {
-            UserModel.create({
-              email: req.body.id,
-              planChosen: returnedPlan._id, // Set all new users with default plan initially
-            });
-          }
-        });
-        return res.send(data);
-      }));
-    } catch (err) {
-      logger.error("SERVER ROUTER: Error after calling AuthService -> " + err);
-      return res.status(500).send("Unable to register new user");
-    }
+// Login/register now happen client-side against the Firebase client SDK
+// (email/password and Google both). This endpoint just verifies the
+// resulting idToken (sent as a Bearer header) and provisions a User doc
+// (with the default plan) for first-time users of either auth method.
+router.post("/users/verify", async function (req, res, next) {
+  try {
+    var email = await AuthService.getEmailFromToken(req);
+    ensureUser(email, () => res.sendStatus(200));
+  } catch (err) {
+    logger.error("SERVER ROUTER: Error verifying user -> " + err);
+    return res.sendStatus(401);
   }
 });
 
@@ -337,4 +319,33 @@ function getDefaultPassage() {
   var day = new Date().getDate();
   var s = "Proverbs " + day;
   return s;
+}
+
+// Ensure a Mongo User doc exists for this email, creating one with the default
+// plan if missing. Idempotent. Always invokes callback() when done (errors logged).
+function ensureUser(email, callback) {
+  var normalizedEmail = (email || "").toLowerCase();
+  UserModel.findOne({ email: normalizedEmail }, (err, existingUser) => {
+    if (err) {
+      logger.error("SERVER ROUTER: Error looking up user : " + err);
+      return callback();
+    }
+    if (existingUser) {
+      return callback();
+    }
+    PlanModel.findOne({ planName: "--- Default Nav Plan ---" }, (err, returnedPlan) => {
+      if (err || returnedPlan == null) {
+        logger.error("SERVER ROUTER: Error getting default plan ID for new user : " + err);
+        return callback();
+      }
+      UserModel.create({
+        email: normalizedEmail,
+        planChosen: returnedPlan._id, // Set all new users with default plan initially
+      }, (err) => {
+        if (err) logger.error("SERVER ROUTER: Error creating user : " + err);
+        else logger.info("SERVER ROUTER: User " + normalizedEmail + " provisioned");
+        return callback();
+      });
+    });
+  });
 }

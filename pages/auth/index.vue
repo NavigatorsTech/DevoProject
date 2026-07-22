@@ -28,6 +28,13 @@
         <v-spacer></v-spacer>
         <v-btn @click="login" color="info">Login</v-btn>
       </v-card-actions>
+      <v-divider></v-divider>
+      <v-card-actions>
+        <v-btn @click="loginWithGoogle" block outlined>
+          <v-icon left>mdi-google</v-icon>
+          Sign in with Google
+        </v-btn>
+      </v-card-actions>
     </v-card>
     <center>
       <a><v-card-text @click="validate()">Forgot Password?</v-card-text></a>
@@ -71,6 +78,9 @@ export default {
         pwd: this.password
       });
     },
+    loginWithGoogle() {
+      this.$store.dispatch("userStore/authenticateWithGoogle");
+    },
     async passwordReset() {
       try {
         await this.$fire.auth.sendPasswordResetEmail(this.email, {
@@ -106,7 +116,7 @@ export default {
       if (this.errorOccured) {
         this.snack = true;
         this.snackColor = "error";
-        this.snackText = "Authentication failed";
+        this.snackText = this.$store.getters["userStore/getErrorMessage"];
         this.$store.dispatch("userStore/clearError");
       }
     }

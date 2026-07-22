@@ -1,6 +1,8 @@
 <template>
   <div>
     <h1>Your Journal Entries</h1>
+    <StreakCard class="mx-auto" />
+    <br />
     <center>
       <v-btn to="/journalList/createEntry" nuxt exact color="primary">Write QT Thoughts</v-btn>
     </center>
@@ -11,6 +13,7 @@
 
 <script>
 import JournalCard from "@/components/JournalCard";
+import StreakCard from "@/components/StreakCard";
 
 export default {
   asyncData(context) {
@@ -26,6 +29,7 @@ export default {
   middleware: ["checkAuth", "loginCheck"],
   components: {
     JournalCard,
+    StreakCard,
   },
   computed: {
     entriesInReverse: function () {
