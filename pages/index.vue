@@ -5,10 +5,10 @@
         <v-col cols="12" md="10">
           <v-card border>
             <v-list-item>
-              <v-list-item-title class="headline mb-1 text-wrap">
+              <v-list-item-title class="text-h5 mb-1 text-wrap">
                 Your Personal QT and Journaling App
               </v-list-item-title>
-              <v-list-item-subtitle class="text-high-emphasis text-wrap">
+              <v-list-item-subtitle class="text-high-emphasis text-wrap" style="opacity: 1">
                 Practice PRESS in building your Quiet Time habits! This app
                 aims to help you build a habit of journaling your QT thoughts.
                 Bible passages change every day.

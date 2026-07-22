@@ -3,7 +3,7 @@
     <v-form ref="lazyForm">
       <v-card width="400" class="mx-auto mt-5">
         <v-card-title>
-          <h1 class="display-1">Login</h1>
+          <h1 class="text-h4">Login</h1>
         </v-card-title>
         <v-card-text>
           <v-text-field
@@ -38,8 +38,8 @@
         </v-card-actions>
       </v-card>
     </v-form>
-    <div class="d-flex justify-center">
-      <v-card-text style="cursor: pointer" @click="validate()">Forgot Password?</v-card-text>
+    <div class="d-flex justify-center mt-4">
+      <span style="cursor: pointer" @click="validate()">Forgot Password?</span>
     </div>
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">
       {{ snackText }}

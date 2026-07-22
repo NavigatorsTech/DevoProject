@@ -19,7 +19,7 @@
           <v-btn class="ma-1" color="success" variant="elevated" v-bind="activatorProps">Update</v-btn>
         </template>
         <v-card>
-          <v-card-title class="headline">Just to be sure...</v-card-title>
+          <v-card-title class="text-h5">Just to be sure...</v-card-title>
           <v-card-text>Are you sure you would like to update this entry?</v-card-text>
           <v-card-actions>
             <v-spacer />
@@ -34,7 +34,7 @@
           <v-btn class="ma-1" color="error" variant="elevated" v-bind="activatorProps">Delete</v-btn>
         </template>
         <v-card>
-          <v-card-title class="headline">Just to be sure...</v-card-title>
+          <v-card-title class="text-h5">Just to be sure...</v-card-title>
           <v-card-text>Are you sure you would like to delete this entry?</v-card-text>
           <v-card-actions>
             <v-spacer />

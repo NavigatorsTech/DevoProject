@@ -14,7 +14,7 @@
         <v-btn color="success" variant="elevated" v-bind="activatorProps">Update Plan</v-btn>
       </template>
       <v-card>
-        <v-card-title class="headline">Just to be sure...</v-card-title>
+        <v-card-title class="text-h5">Just to be sure...</v-card-title>
         <v-card-text>Are you sure you would like to update this plan?</v-card-text>
         <v-card-actions>
           <v-spacer />

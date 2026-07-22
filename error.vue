@@ -5,14 +5,14 @@
         <v-col cols="12" md="10">
           <v-card border>
             <v-list-item>
-              <v-list-item-title class="headline mb-1 text-wrap">
+              <v-list-item-title class="text-h5 mb-1 text-wrap">
                 Your Personal QT and Journaling App
               </v-list-item-title>
-              <v-list-item-subtitle v-if="error?.statusCode === 404" class="text-high-emphasis text-wrap">
+              <v-list-item-subtitle v-if="error?.statusCode === 404" class="text-high-emphasis text-wrap" style="opacity: 1">
                 {{ pageNotFound }}
                 <br />You will have to log in to view this page
               </v-list-item-subtitle>
-              <v-list-item-subtitle v-else class="text-high-emphasis text-wrap">
+              <v-list-item-subtitle v-else class="text-high-emphasis text-wrap" style="opacity: 1">
                 {{ otherError }}
                 <br />You will have to log in to view this page
               </v-list-item-subtitle>

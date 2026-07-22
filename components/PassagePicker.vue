@@ -1,56 +1,54 @@
 <template>
-  <v-stepper v-model="currentStep" flat>
-    <v-stepper-window>
-      <v-stepper-window-item :value="1">
-        <v-list class="sList">
-          <v-list-item
-            v-for="i in bible"
-            :key="i.bookName"
-            @click="bookChosen(2, i)"
-          >
-            <v-list-item-title>{{ i.bookName }}</v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </v-stepper-window-item>
-      <v-stepper-window-item :value="2">
-        <v-list class="sList">
-          <v-list-item v-for="i in chosenBook?.bookChapters ?? 0" :key="i">
-            <template v-slot:prepend>
-              <v-checkbox v-model="ccSelected[i]" color="primary" />
-            </template>
-            <v-list-item-title>Chapter {{ i }}</v-list-item-title>
-          </v-list-item>
-        </v-list>
-        <v-btn
-          v-show="anyChapterSelected"
-          color="indigo"
-          location="bottom right"
-          position="fixed"
-          variant="elevated"
-          icon
-          @click="chapterChosen(3)"
+  <div>
+    <div v-if="currentStep === 1">
+      <v-list class="sList">
+        <v-list-item
+          v-for="i in bible"
+          :key="i.bookName"
+          @click="bookChosen(2, i)"
         >
-          <v-icon>mdi-arrow-right</v-icon>
-        </v-btn>
-      </v-stepper-window-item>
-      <v-stepper-window-item :value="3">
-        <v-label>Starting Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[0] }}</v-label>
-        <v-select v-model="sV" :items="verseList(chosenChapter[0])" variant="outlined" density="compact" />
-        <v-label v-if="chosenChapter.length > 1">
-          Ending Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[chosenChapter.length - 1] }}
-        </v-label>
-        <v-label v-else>Ending Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[0] }}</v-label>
-        <v-select
-          v-if="chosenChapter.length > 1"
-          v-model="eV"
-          :items="verseList(chosenChapter[chosenChapter.length - 1])"
-          variant="outlined"
-          density="compact"
-        />
-        <v-select v-else v-model="eV" :items="verseList(chosenChapter[0])" variant="outlined" density="compact" />
-      </v-stepper-window-item>
-    </v-stepper-window>
-  </v-stepper>
+          <v-list-item-title>{{ i.bookName }}</v-list-item-title>
+        </v-list-item>
+      </v-list>
+    </div>
+    <div v-else-if="currentStep === 2">
+      <v-list class="sList">
+        <v-list-item v-for="i in chosenBook?.bookChapters ?? 0" :key="i">
+          <template v-slot:prepend>
+            <v-checkbox v-model="ccSelected[i]" color="primary" />
+          </template>
+          <v-list-item-title>Chapter {{ i }}</v-list-item-title>
+        </v-list-item>
+      </v-list>
+      <v-btn
+        v-show="anyChapterSelected"
+        color="indigo"
+        location="bottom right"
+        position="fixed"
+        variant="elevated"
+        icon
+        @click="chapterChosen(3)"
+      >
+        <v-icon>mdi-arrow-right</v-icon>
+      </v-btn>
+    </div>
+    <div v-else-if="currentStep === 3">
+      <v-label>Starting Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[0] }}</v-label>
+      <v-select v-model="sV" :items="verseList(chosenChapter[0])" variant="outlined" density="compact" />
+      <v-label v-if="chosenChapter.length > 1">
+        Ending Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[chosenChapter.length - 1] }}
+      </v-label>
+      <v-label v-else>Ending Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[0] }}</v-label>
+      <v-select
+        v-if="chosenChapter.length > 1"
+        v-model="eV"
+        :items="verseList(chosenChapter[chosenChapter.length - 1])"
+        variant="outlined"
+        density="compact"
+      />
+      <v-select v-else v-model="eV" :items="verseList(chosenChapter[0])" variant="outlined" density="compact" />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">

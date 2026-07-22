@@ -21,7 +21,7 @@
                 v-model="entryThoughts"
                 variant="solo"
                 counter
-                label="This part of the passage tells me that..."
+                placeholder="This part of the passage tells me that..."
                 :rules="thoughtsRules"
               />
             </v-col>

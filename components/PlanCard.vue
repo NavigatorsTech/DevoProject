@@ -11,7 +11,7 @@
             <v-btn :disabled="notOwner" color="red" variant="text" v-bind="activatorProps">Delete</v-btn>
           </template>
           <v-card>
-            <v-card-title class="headline">Just to be sure...</v-card-title>
+            <v-card-title class="text-h5">Just to be sure...</v-card-title>
             <v-card-text>Are you sure you would like to delete this plan?</v-card-text>
             <v-card-actions>
               <v-spacer />

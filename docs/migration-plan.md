@@ -324,6 +324,60 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     typed text, standard Material text-field behavior, matching what Vuetify 2 also does. No
     difference found from what's expected; flagged back to the user for a more specific
     repro (screenshot/video) rather than changing something that already appears correct.
+  - **Correction from the user on the textarea/label report**: in *production*, the label
+    doesn't float — it's simply replaced/covered once typing starts (placeholder-style, not
+    an animated Material label). My "investigation" above had it backwards, assuming standard
+    floating-label behavior was correct without checking what production actually does. Fixed
+    by changing `QTJournalEditor.vue`'s thoughts `v-textarea` from `label` to `placeholder`
+    (native placeholder semantics: present, then gone on input, never floats) — matching
+    production exactly. Left the Title/Application `v-text-field`s as `label` since those
+    weren't reported and do correctly float in both versions.
+  - **Five more real bugs found from a second, much more thorough round of user feedback +
+    direct computed-style measurement** (the user rightly pushed for actual tooling
+    verification over visual guessing):
+    - **All Vuetify 2 typography classes were dead in Vuetify 3.** `display-1`, `headline`, etc.
+      don't exist in Vuetify 3's CSS at all — Vuetify 3 renamed the entire typography scale
+      (`display-1`→`text-h4`, `headline`→`text-h5`, etc.), so every element still using the old
+      names had **zero** typography styling applied, silently falling back to the browser's
+      raw default font/size (explaining the "Login heading font looks different" report).
+      Grepped the whole codebase and fixed all 7 occurrences across `pages/auth/index.vue`,
+      `pages/index.vue`, `error.vue`, `PlanCard.vue`, and both journal/plan confirmation
+      dialogs.
+    - **`v-list-item-subtitle` has a built-in `opacity: var(--v-medium-emphasis-opacity)` (0.7)
+      baked into the component itself**, confirmed via direct computed-style inspection
+      (production: `opacity: 1`, color `rgb(255,255,255)`; test: `opacity: 0.7`, same color) -
+      the PRESS-description and error-page subtitles (`text--primary` originally) were
+      genuinely dimmer than production, not a false alarm this time. The `text-high-emphasis`
+      class was doing its job correctly (computing full-opacity white via its own `color`
+      rule); the component's own separate `opacity` property was compounding on top of it
+      regardless of what class was applied. Fixed with an explicit `style="opacity: 1"`
+      override on both. `Passage.vue`'s `v-card-text` usage of the same class was checked and
+      confirmed *not* affected (no such built-in opacity on that component).
+    - **"Forgot Password?" still wasn't centered after the first "fix"** - the real root cause
+      was different from what was first diagnosed. `v-card-text` has `flex-grow: 1` baked into
+      its own component styles, so inside the `d-flex justify-center` wrapper it stretched to
+      fill the entire flex container width, leaving no free space for centering to act on, and
+      its own `text-align: start` then left-aligned the text within that full-width box.
+      Confirmed by walking the actual DOM box widths and computed styles up the ancestor
+      chain, not by re-guessing. Fixed by replacing `v-card-text` with a plain `<span>` for
+      this element (it was never semantically card content anyway).
+    - **Utility classes (`d-flex`, `mx-auto`, etc.) were suspected missing entirely** after
+      grepping the SSR-inlined `<style>` blocks and finding zero matches - turned out to be a
+      false lead: they exist correctly in a separate externally-linked `entry.[hash].css`
+      bundle that Nuxt's `experimental.inlineSSRStyles` doesn't fold into the per-page inlined
+      styles. Worth remembering for future debugging in this app: **check the linked
+      `entry.*.css` file, not just inlined `<style>` tags**, before concluding a utility class
+      is missing.
+    - **`PassagePicker.vue` used Vuetify 3's all-in-one `<v-stepper>`** (with its own built-in
+      header/step-indicator UI and step-progression logic), while the *original* Vuetify 2
+      version never rendered a stepper header at all - it only used bare `v-if="currentStep
+      === N"` conditionals inside a plain stepper-content wrapper for styling. Flagged as the
+      likely cause of a reported "plan editor/picker not working well" on the Plans page
+      (not yet re-verified live - the test session had expired at the time of this fix, so
+      this is inference from code review, not confirmed via interaction). Simplified to plain
+      `v-if`/`v-else-if` divs with no stepper component at all, removing any risk from
+      Vuetify 3's stepper auto-behavior we don't fully control. **Needs live confirmation on
+      the Plans page once a session is available.**
   - All three confirmed fixes verified live post-deploy via direct computed-style checks:
     card border `rgba(255,255,255,0.12)` (exact match with production), button text
     `rgb(255,255,255)` on a `rgb(100,181,246)` (primary) background for an elevated button —
