@@ -241,12 +241,33 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     Parity QA, which should use dedicated test credentials rather than whatever a browser's
     password manager happens to autofill.
 - [ ] **Phase 6** — Data validation scripts + reverse-proxy HTTPS + PM2/CI deploy
-  - In progress: setting up a parallel test deployment on the real production server
-    (`/home/roger/QTNuxtProject-v4-test`, Node 20 via `nvm` since the server's system Node is
-    v14, PM2 process `qtapp-v4test` on `127.0.0.1:3001`), pointed at an isolated
-    `devoProjDB_v4test` Mongo database (same Atlas cluster/credentials, seeded with only the
-    non-sensitive default-plan document — no real user data copied). Reuses the real Firebase
-    project (same `fb-service-account.json`) since no user re-registration is needed per §12.
+  - **Live parallel test deployment stood up and verified working** on the real production
+    server, alongside the untouched live Nuxt 2 app:
+    - `/home/roger/QTNuxtProject-v4-test` — `nuxt4-migration` branch (fetched from the
+      `rogeryeosgit` fork, since prod tracks the `NavigatorsTech` org repo)
+    - Node 20.20.2 via `nvm` for the `roger` user (the server's system Node is v14, far too old
+      for Nuxt 4 — installed additively, doesn't touch the live app's Node/PM2 setup at all)
+    - PM2 process `qtapp-v4test`, listening on `127.0.0.1:3001` only (not exposed directly)
+    - Isolated `devoProjDB_v4test` database (same Atlas cluster/credentials as production),
+      seeded with only the single non-sensitive default-plan document — no real user/journal
+      data copied anywhere
+    - Reuses the real Firebase project (same `fb-service-account.json`) since no user
+      re-registration is needed per §12
+    - New nginx server block (`/etc/nginx/sites-available/qt-v4test`) listens on `8443` for
+      the **same hostname** `qt.navigators.tech`, reusing the **existing** Let's Encrypt cert
+      unchanged (certs validate hostname, not port), terminating TLS and proxying to the
+      plain-HTTP Nitro backend — the reverse-proxy architecture the plan calls for, done for
+      real rather than just planned. The existing production nginx site config was not
+      touched at all.
+    - **Public URL: `https://qt.navigators.tech:8443`** — confirmed serving a full, correct
+      SSR page: dark theme, nav drawer, real ESV passage text with correct verse-superscript
+      formatting, all sourced from the seeded test database and the real ESV API.
+    - Required opening TCP 8443 in the server's `ufw` firewall (previously blocked — confirmed
+      via a 522 from Cloudflare and a direct-to-origin connection timeout before the port was
+      opened). **Follow-up owed to the user**: they explicitly asked to be reminded to close
+      this port again once all migration testing/validation work is complete — saved as a
+      memory (`qt_v4_test_deployment` in project memory) so this doesn't get lost; raise it
+      proactively near the end of Phase 6/Parity QA rather than waiting to be asked.
   - **Real bug found via this real deployment, fixed in `nuxt.config.ts`**: server-only
     `runtimeConfig` secrets (`mongodbAccess`, `mongooseSecret`, `esvApiKey`,
     `firebaseServiceAccountPath`) were being defaulted from bare `process.env.X` reads
