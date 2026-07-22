@@ -177,7 +177,69 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     journalStore` import in `QTJournalEditor.vue`, and the same Phase 3/5-flagged
     `layouts/default.vue` Vuex reference) are exactly the pre-identified, Phase-5-scoped
     leftovers from removing Vuex in Phase 2 — not new issues introduced by this phase.
-- [ ] **Phase 5** — Components & layouts (Vue 2→3 + Vuetify 2→3; PlanEditor & PassagePicker are the heavy lifts)
+- [x] **Phase 5** — Components & layouts (Vue 2→3 + Vuetify 2→3; PlanEditor & PassagePicker are the heavy lifts)
+  - Done: every layout, component, and page converted to Vue 3 `<script setup lang="ts">` +
+    Vuetify 3. Vue 2→3 breaking changes applied throughout (§7): filters →
+    `dateFormatter()` helper calls, `.sync` → `v-model:`/writable computeds, `beforeDestroy` →
+    `onBeforeUnmount`, `value`/`input` v-model contract → `modelValue`/`update:modelValue`,
+    imperative parent→child calls kept via `defineExpose`. Vuetify 2→3 API updates applied
+    throughout: `v-list-item-action`/`v-list-item-content` removed (props/slots on
+    `v-list-item` directly), boolean props → `variant`/`size` (`text`→`variant="text"`,
+    `outlined`→`variant="outlined"`, `small`→`size="small"`), `mini-variant`→`rail`,
+    `right`→`location="right"`, dialog activator slot `{ on, attrs }`→`{ props }`,
+    **`text--primary`/`text--secondary`→`text-high-emphasis`/`text-medium-emphasis`** (a real
+    semantic trap: Vuetify 3's `text-primary` means the *primary theme color*, not the Vuetify 2
+    emphasis-level class of the same near-name — naively renaming would have silently reskinned
+    body text blue). `layouts/default.vue`'s side-effecting `setTheme` computed is gone
+    entirely — dark theme is already the nuxt.config.ts default, so forcing it at runtime is no
+    longer needed. Root `nuxtServerInit` folded into `pages/index.vue`'s own `useAsyncData` as
+    planned in Phase 2.
+  - **Nuxt 2→4 routing/error-page gap found and fixed**: `layouts/error.vue` is *not*
+    auto-wired to thrown errors/404s in Nuxt 4 the way it was in Nuxt 2 (Nuxt 4 needs a
+    project-root `error.vue`, a completely different mechanism). `middleware/login-check.ts`'s
+    `navigateTo('/error')` was hitting Nuxt's generic built-in 404 instead of the app's own
+    error page until this was caught via live browser testing and fixed by moving the content
+    to root `error.vue` and using `clearError({ redirect: '/auth' })` instead of a plain link
+    (the documented way to leave Nuxt's error-boundary state).
+  - **Two components got a deliberately heavier rewrite than a mechanical port**, both
+    flagged in advance as the plan's biggest risk areas and both resolved by *avoiding* the
+    uncertain Vuetify 3 API entirely rather than gambling on it:
+    - **`PassagePicker.vue`**: the 66-book hardcoded Bible verse-count array was extracted
+      verbatim to `data/bible-books.json` via a Node script (not hand-retyped, to eliminate
+      transcription risk) — validated to have all 66 books, 1189 total chapters (the correct
+      count for the whole Bible), and every book's chapter count matching its verse-array
+      length before being trusted. The parent-mutates-a-shared-`isCompleted`-prop broadcast
+      reset (§7's flagged anti-pattern, coupled to a `ppID`-matching handshake) is replaced by
+      an exposed `reset()` method the parent calls directly via template ref — matching the
+      imperative-handle pattern already used everywhere else in this app, and only made
+      practical because the parent redesign below gives every row its own real ref.
+    - **`PlanEditor.vue`**: `v-edit-dialog` (removed in Vuetify 3, exactly as FEATURES.md
+      flagged) and `v-data-table`'s dynamic-slot + `v-date-picker type="month"` (both
+      genuinely uncertain APIs in the installed Vuetify 3.7 without live doc access) are all
+      replaced by a manually-rendered `v-table` with a per-row custom `v-dialog` edit cell
+      (the plan's own suggested fallback) and two plain `v-select` dropdowns (month name,
+      year) driving the same `YYYY-MM` date string via writable computeds — built entirely
+      from Vuetify 3 patterns already confirmed working elsewhere (dialog activator slots),
+      rather than components whose exact current-version shape couldn't be verified live.
+  - One-off literal colors flagged in FEATURES.md §8 (`indigo` app bar, `blue` "View Full
+    Entry" button) are kept exactly as-is, not "fixed" to `primary` — parity-first, since
+    resolving that inconsistency was optional and not requested.
+  - Verified via `npx nuxt typecheck` (fully clean across every new/changed file) and a live
+    `npm run dev` + Chrome browser session against a local test Mongo: homepage renders fully
+    (dark theme, nav drawer, PRESS card, passage card with correct date formatting, login CTA),
+    `/auth` renders correctly (form, Google button, forgot-password), `login-check` middleware
+    correctly redirects an unauthenticated request to the new working error page, and the
+    error page's "Proceed to log in" button correctly clears the error and navigates to
+    `/auth`. Console is clean (no hydration mismatches, no Vue warnings) aside from the
+    expected caught 403 from the intentionally-invalid dev ESV key. Found and fixed one real
+    bug along the way: `Passage.vue` didn't guard against `passageContents` being `null`
+    (the pre-load-completes / fetch-failed state), crashing SSR.
+  - **Not yet exercised live** (needs a deliberate decision on test credentials, not something
+    to trigger accidentally): the actual Firebase login/register/Google flow, journal
+    entry CRUD, and plan CRUD (including `PlanEditor`/`PassagePicker` interaction) all require
+    a real authenticated session against the real Firebase project. Deferred to Phase 6 /
+    Parity QA, which should use dedicated test credentials rather than whatever a browser's
+    password manager happens to autofill.
 - [ ] **Phase 6** — Data validation scripts + reverse-proxy HTTPS + PM2/CI deploy
 - [ ] **Parity QA** — walk `FEATURES.md` §11 checklist against production; §10 security regressions; §12 data / §13 deploy go/no-go gates
 

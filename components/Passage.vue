@@ -1,32 +1,30 @@
 <template>
-  <v-layout column justify-center align-center>
-    <v-flex>
-      <v-card>
-        <v-card-title>{{ reference }}</v-card-title>
-        <v-card-subtitle>{{ passageDate | dateFormatter }}</v-card-subtitle>
-        <v-card-text v-html="passage" class="text--primary" id="verse-number-sup" style="white-space: pre-wrap;"></v-card-text>
-      </v-card>
-    </v-flex>
-  </v-layout>
+  <div class="d-flex flex-column justify-center align-center">
+    <v-card>
+      <v-card-title>{{ reference }}</v-card-title>
+      <v-card-subtitle>{{ dateFormatter(passageDate) }}</v-card-subtitle>
+      <v-card-text
+        id="verse-number-sup"
+        class="text-high-emphasis"
+        style="white-space: pre-wrap"
+        v-html="passage"
+      />
+    </v-card>
+  </div>
 </template>
 
-<script>
-export default {
-  props: ['passageDate', 'passageContents', 'reference'],
-  computed: {
-    passage: function () {
-      // Format passage verses to be superscript
-      var temp = this.passageContents.replace(/(\[)(\d)/g, this.frontBracketReplacer);
-      return temp.replace(/(\d)(\])/g, this.backBracketReplacer);
-    }
-  },
-  methods: {
-    frontBracketReplacer(match, p1, p2) {
-      return '<b><sup>' + p2;
-    },
-    backBracketReplacer(match, p1, p2) {
-      return p1 + '</sup></b>';
-    }
-  }
-};
+<script setup lang="ts">
+const props = defineProps<{
+  passageDate: string | Date
+  passageContents: string | null
+  reference: string | null
+}>()
+
+// Format passage verses to be superscript
+const passage = computed(() => {
+  if (!props.passageContents) return ''
+  return props.passageContents
+    .replace(/(\[)(\d)/g, (_match, _p1, p2) => `<b><sup>${p2}`)
+    .replace(/(\d)(\])/g, (_match, p1, _p2) => `${p1}</sup></b>`)
+})
 </script>

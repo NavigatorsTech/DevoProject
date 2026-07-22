@@ -10,36 +10,36 @@
       :propEntryAppImp="retrievedEntry.applicationImplication"
       :draftKey="'qtDraft:edit:' + id"
       @draft-restored="onDraftRestored"
-    ></QTJournalEditor>
+    />
     <div class="d-flex flex-wrap">
-      <v-btn class="ma-1" @click="cancel" color="warning">Cancel</v-btn>
-      <v-btn class="ma-1" @click="copyContents" color="primary">Share</v-btn>
-      <v-dialog v-model="updateDialog" persistent max-width="290" dark>
-        <template v-slot:activator="{ on, attrs }">
-          <v-btn class="ma-1" v-bind="attrs" v-on="on" color="success">Update</v-btn>
+      <v-btn class="ma-1" color="warning" @click="cancel">Cancel</v-btn>
+      <v-btn class="ma-1" color="primary" @click="copyContents">Share</v-btn>
+      <v-dialog v-model="updateDialog" persistent max-width="290">
+        <template v-slot:activator="{ props: activatorProps }">
+          <v-btn class="ma-1" color="success" v-bind="activatorProps">Update</v-btn>
         </template>
         <v-card>
           <v-card-title class="headline">Just to be sure...</v-card-title>
           <v-card-text>Are you sure you would like to update this entry?</v-card-text>
           <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="warning" text @click="updateDialog = false">Cancel</v-btn>
-            <v-btn color="success" text @click="updateEntry();updateDialog = false;">Yes</v-btn>
+            <v-spacer />
+            <v-btn color="warning" variant="text" @click="updateDialog = false">Cancel</v-btn>
+            <v-btn color="success" variant="text" @click="updateEntry(); updateDialog = false">Yes</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
 
-      <v-dialog v-model="deleteDialog" persistent max-width="290" dark>
-        <template v-slot:activator="{ on, attrs }">
-          <v-btn class="ma-1" v-bind="attrs" v-on="on" color="error">Delete</v-btn>
+      <v-dialog v-model="deleteDialog" persistent max-width="290">
+        <template v-slot:activator="{ props: activatorProps }">
+          <v-btn class="ma-1" color="error" v-bind="activatorProps">Delete</v-btn>
         </template>
         <v-card>
           <v-card-title class="headline">Just to be sure...</v-card-title>
           <v-card-text>Are you sure you would like to delete this entry?</v-card-text>
           <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn color="warning" text @click="deleteDialog = false">Cancel</v-btn>
-            <v-btn color="success" text @click="deleteEntry()" to="/journalList" nuxt>Yes</v-btn>
+            <v-spacer />
+            <v-btn color="warning" variant="text" @click="deleteDialog = false">Cancel</v-btn>
+            <v-btn color="success" variant="text" to="/journalList" @click="deleteEntry()">Yes</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -47,141 +47,134 @@
 
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">
       {{ snackText }}
-      <template v-slot:action="{ attrs }">
-        <v-btn v-if="showDiscardDraftButton" text v-bind="attrs" @click="discardDraftFromSnackbar">Discard</v-btn>
-        <v-btn text v-bind="attrs" @click="snack = false; showDiscardDraftButton = false;">Close</v-btn>
+      <template v-slot:actions>
+        <v-btn v-if="showDiscardDraftButton" variant="text" @click="discardDraftFromSnackbar">Discard</v-btn>
+        <v-btn variant="text" @click="snack = false; showDiscardDraftButton = false">Close</v-btn>
       </template>
     </v-snackbar>
   </div>
 </template>
 
-<script>
-import QTJournalEditor from "@/components/QTJournalEditor";
+<script setup lang="ts">
+definePageMeta({ middleware: ['check-auth', 'login-check'] })
 
-export default {
-  asyncData(context) {
-    if (context.store.getters["journalStore/getQTEntriesLength"] === 0) {
-      var userID = context.store.getters["userStore/getUserID"];
-      return context.app.$axios.$get("/qtJournalEntries", {
-        params: {
-          creatorEmail: userID,
-        },
-      }).then((data) => {
-        context.store.dispatch("journalStore/storeAllQTEntries", data);
-      }).then(() => {
-        var entry = context.store.getters["journalStore/getEntryUsingID"](context.route.params.jid);
-        return context.app.$axios.$get("/passages", {
-          params: {
-            passageReference: entry.passageReference,
-          },
-        }).then((data) => {
-          return { passageContents: data.passages[0] };
-        })
-      }).catch((e) => context.error(e));
-    } else {
-      var entry = context.store.getters["journalStore/getEntryUsingID"](context.route.params.jid);
-      return context.app.$axios.$get("/passages", {
-        params: {
-          passageReference: entry.passageReference,
-        },
-      }).then((data) => {
-        return { passageContents: data.passages[0] };
-      }).catch((e) => context.error(e));
-    }
-  },
-  middleware: ["checkAuth", "loginCheck"],
-  components: {
-    QTJournalEditor,
-  },
-  // Fires only on in-app navigation away from this route (Cancel, a
-  // successful Update, Delete, clicking elsewhere in the nav) - NOT on a
-  // hard refresh or tab close, since those tear the page down entirely
-  // rather than going through vue-router. So: deliberately leaving always
-  // discards the draft (the next visit shows the official saved entry),
-  // while an accidental refresh/close still recovers it, since the draft
-  // was never cleared in that case.
-  beforeRouteLeave(to, from, next) {
-    if (this.$refs.QTJournalEditorComponent) {
-      this.$refs.QTJournalEditorComponent.clearDraft();
-    }
-    next();
-  },
-  data() {
-    return {
-      id: this.$route.params.jid,
-      updateDialog: false,
-      deleteDialog: false,
-      snack: false,
-      snackColor: "",
-      snackText: "",
-      showDiscardDraftButton: false,
-    };
-  },
-  computed: {
-    retrievedEntry: function () {
-      if (this.$store.getters["journalStore/getEntryUsingID"](this.id) != null) {
-        return this.$store.getters["journalStore/getEntryUsingID"](this.id);
-      } else {
-        // Need this to get out of the component after deletion
-        return {
-          title: "",
-          date: new Date(),
-          passageReference: "",
-          thoughts: "",
-          applicationImplication: "",
-        };
-      }
-    },
-  },
-  methods: {
-    onDraftRestored: function () {
-      this.snack = true;
-      this.snackColor = "info";
-      this.snackText = "Restored your unsaved draft";
-      this.showDiscardDraftButton = true;
-    },
-    discardDraftFromSnackbar: function () {
-      this.$refs.QTJournalEditorComponent.discardDraft();
-      this.snack = false;
-      this.showDiscardDraftButton = false;
-    },
-    copyContents: function () {
-      var entry = this.$refs.QTJournalEditorComponent.getEntry();
-      var copyText = entry.passageReference + "\n\nTitle: " + entry.title + "\n\n" + entry.thoughts + "\n\nApplication: " + entry.applicationImplication;
-      navigator.clipboard.writeText(copyText).then(() => {
-        this.showDiscardDraftButton = false;
-        this.snack = true;
-        this.snackColor = "success";
-        this.snackText = "Copied to Clipboard";
-      });
-    },
-    cancel: function () {
-      this.$router.push("/journalList");
-    },
-    updateEntry: async function () {
-      if (this.$refs.QTJournalEditorComponent.checkValidation()) {
-        var entry = this.$refs.QTJournalEditorComponent.getEntry();
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+const journalStore = useJournalStore()
 
-        var ok = await this.$store.dispatch("journalStore/updateEntry", {
-          journalID: this.id,
-          title: entry.title,
-          thoughts: entry.thoughts,
-          applicationImplication: entry.applicationImplication,
-        });
+const id = route.params.jid as string
 
-        if (ok) {
-          this.$router.push("/journalList");
-        } else {
-          this.showDiscardDraftButton = false;
-          this.snack = true;
-          this.snackColor = "error";
-          this.snackText = "Couldn't save your changes — your draft is safe, please try again.";
-        }
-      }
-    },
-    deleteEntry: function () {
-      this.$store.dispatch("journalStore/deleteEntry", this.id);
-    },
-  },
-};
+const QTJournalEditorComponent = ref()
+const updateDialog = ref(false)
+const deleteDialog = ref(false)
+const snack = ref(false)
+const snackColor = ref('')
+const snackText = ref('')
+const showDiscardDraftButton = ref(false)
+
+const { data: passageData, error: fetchError } = await useAsyncData(`journal-entry-${id}`, async () => {
+  if (journalStore.getQTEntriesLength === 0) {
+    const entries = await authFetch('/api/qtJournalEntries', {
+      params: { creatorEmail: userStore.userID }
+    })
+    journalStore.storeAllQTEntries(entries)
+  }
+
+  const entry = journalStore.getEntryUsingID(id)
+  if (!entry) {
+    throw createError({ statusCode: 404, statusMessage: 'Entry not found' })
+  }
+
+  const data: any = await authFetch('/api/passages', {
+    params: { passageReference: entry.passageReference }
+  })
+  return data.passages[0]
+})
+
+if (fetchError.value) {
+  throw createError({ statusCode: 500, statusMessage: 'Failed to load journal entry' })
+}
+
+const passageContents = computed(() => passageData.value)
+
+const retrievedEntry = computed(() => {
+  const entry = journalStore.getEntryUsingID(id)
+  if (entry != null) {
+    return entry
+  }
+  // Need this to get out of the component after deletion
+  return {
+    title: '',
+    date: new Date(),
+    passageReference: '',
+    thoughts: '',
+    applicationImplication: ''
+  }
+})
+
+// Fires only on in-app navigation away from this route (Cancel, a successful
+// Update, Delete, clicking elsewhere in the nav) - NOT on a hard refresh or
+// tab close, since those tear the page down entirely rather than going
+// through vue-router. So: deliberately leaving always discards the draft (the
+// next visit shows the official saved entry), while an accidental
+// refresh/close still recovers it, since the draft was never cleared in that
+// case.
+onBeforeRouteLeave(() => {
+  QTJournalEditorComponent.value?.clearDraft()
+})
+
+function onDraftRestored() {
+  snack.value = true
+  snackColor.value = 'info'
+  snackText.value = 'Restored your unsaved draft'
+  showDiscardDraftButton.value = true
+}
+
+function discardDraftFromSnackbar() {
+  QTJournalEditorComponent.value.discardDraft()
+  snack.value = false
+  showDiscardDraftButton.value = false
+}
+
+function copyContents() {
+  const entry = QTJournalEditorComponent.value.getEntry()
+  const copyText = `${entry.passageReference}\n\nTitle: ${entry.title}\n\n${entry.thoughts}\n\nApplication: ${entry.applicationImplication}`
+  navigator.clipboard.writeText(copyText).then(() => {
+    showDiscardDraftButton.value = false
+    snack.value = true
+    snackColor.value = 'success'
+    snackText.value = 'Copied to Clipboard'
+  })
+}
+
+function cancel() {
+  router.push('/journalList')
+}
+
+async function updateEntry() {
+  const valid = await QTJournalEditorComponent.value.checkValidation()
+  if (!valid) return
+
+  const entry = QTJournalEditorComponent.value.getEntry()
+  const ok = await journalStore.updateEntry({
+    journalID: id,
+    title: entry.title,
+    thoughts: entry.thoughts,
+    applicationImplication: entry.applicationImplication
+  })
+
+  if (ok) {
+    router.push('/journalList')
+  } else {
+    showDiscardDraftButton.value = false
+    snack.value = true
+    snackColor.value = 'error'
+    snackText.value = "Couldn't save your changes — your draft is safe, please try again."
+  }
+}
+
+function deleteEntry() {
+  journalStore.deleteEntry(id)
+}
 </script>
