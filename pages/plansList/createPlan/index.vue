@@ -2,8 +2,8 @@
   <div>
     <PlanEditor ref="PlanEditorComponent" />
     <br />
-    <v-btn class="mr-1" color="warning" @click="cancelPlan">Cancel</v-btn>
-    <v-btn color="success" @click="submitPlan">Create Plan</v-btn>
+    <v-btn class="mr-1" color="warning" variant="elevated" @click="cancelPlan">Cancel</v-btn>
+    <v-btn color="success" variant="elevated" @click="submitPlan">Create Plan</v-btn>
   </div>
 </template>
 

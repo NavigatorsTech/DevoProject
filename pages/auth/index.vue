@@ -24,9 +24,9 @@
       </v-card-text>
       <v-divider />
       <v-card-actions>
-        <v-btn color="success" @click="register">Register</v-btn>
+        <v-btn color="success" variant="elevated" @click="register">Register</v-btn>
         <v-spacer />
-        <v-btn color="info" @click="login">Login</v-btn>
+        <v-btn color="info" variant="elevated" @click="login">Login</v-btn>
       </v-card-actions>
       <v-divider />
       <v-card-actions>

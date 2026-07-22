@@ -7,11 +7,11 @@
       :propTempStore="retrievedPlan?.passages"
     />
     <br />
-    <v-btn class="mr-1" color="warning" @click="cancelPlan">Cancel</v-btn>
+    <v-btn class="mr-1" color="warning" variant="elevated" @click="cancelPlan">Cancel</v-btn>
 
     <v-dialog v-model="updateDialog" persistent max-width="290">
       <template v-slot:activator="{ props: activatorProps }">
-        <v-btn color="success" v-bind="activatorProps">Update Plan</v-btn>
+        <v-btn color="success" variant="elevated" v-bind="activatorProps">Update Plan</v-btn>
       </template>
       <v-card>
         <v-card-title class="headline">Just to be sure...</v-card-title>

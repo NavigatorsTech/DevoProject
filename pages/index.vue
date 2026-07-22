@@ -41,8 +41,8 @@
       </v-row>
     </v-container>
     <div class="d-flex justify-center">
-      <v-btn v-if="isAuthenticated" to="/journalList/createEntry" exact color="primary">Write down your thoughts</v-btn>
-      <v-btn v-if="!isAuthenticated" to="/auth" exact color="primary">Log in to journal your thoughts!</v-btn>
+      <v-btn v-if="isAuthenticated" to="/journalList/createEntry" exact color="primary" variant="elevated">Write down your thoughts</v-btn>
+      <v-btn v-if="!isAuthenticated" to="/auth" exact color="primary" variant="elevated">Log in to journal your thoughts!</v-btn>
     </div>
   </div>
 </template>

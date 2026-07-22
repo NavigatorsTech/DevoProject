@@ -15,7 +15,7 @@
       @selected="changeSelected"
     />
     <div class="d-flex justify-center">
-      <v-btn to="/plansList/createPlan" exact color="primary">Create Plan</v-btn>
+      <v-btn to="/plansList/createPlan" exact color="primary" variant="elevated">Create Plan</v-btn>
     </div>
   </div>
 </template>

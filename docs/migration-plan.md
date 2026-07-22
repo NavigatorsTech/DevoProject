@@ -268,6 +268,26 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
       this port again once all migration testing/validation work is complete — saved as a
       memory (`qt_v4_test_deployment` in project memory) so this doesn't get lost; raise it
       proactively near the end of Phase 6/Parity QA rather than waiting to be asked.
+  - **Real visual regression found via side-by-side comparison with production, fixed across
+    10 files**: user-reported "gross"/broken-looking buttons turned out to be a genuine bug,
+    not a subjective style complaint. **Vuetify 3 changed `v-btn`'s default `variant` from a
+    filled/elevated button (Vuetify 2's implicit default) to `"text"`.** Every button ported
+    from the original with a `color` prop but no explicit `text` prop (meaning Vuetify 2 *was*
+    rendering it filled/elevated) silently became a flat, backgroundless text button — confirmed
+    precisely via comparing the actual rendered DOM class lists
+    (`v-btn--is-elevated v-btn--has-bg` on production vs. `v-btn--variant-text` on the test
+    deployment for the exact same Register/Login buttons). This wasn't caught by typecheck or
+    functional testing since it's a pure visual/CSS-class difference with no type or runtime
+    error. Fixed by adding `variant="elevated"` explicitly everywhere the original had no
+    `text` prop: `pages/index.vue`, `pages/auth/index.vue`, both journal pages, both plans
+    pages plus `plansList/index.vue`, `error.vue`, and `PassagePicker.vue`'s step-forward FAB
+    (19 buttons total). Buttons that already had explicit `variant="text"`/`"outlined"` from
+    the Phase 5 port (confirming the original *did* have `text` in Vuetify 2, e.g. dialog
+    Cancel/Yes buttons, the Google sign-in button, `JournalCard`'s "View Full Entry") were
+    already correct and untouched. **Lesson for Parity QA**: this class of bug — a changed
+    default that produces no error, just a silently different look — can only be caught by an
+    actual visual comparison against production, not by typecheck/build/functional testing
+    alone. Worth a full page-by-page visual sweep, not just the pages checked so far.
   - **Real bug found via this real deployment, fixed in `nuxt.config.ts`**: server-only
     `runtimeConfig` secrets (`mongodbAccess`, `mongooseSecret`, `esvApiKey`,
     `firebaseServiceAccountPath`) were being defaulted from bare `process.env.X` reads

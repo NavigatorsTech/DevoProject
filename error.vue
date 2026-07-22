@@ -22,7 +22,7 @@
       </v-row>
     </v-container>
     <div class="d-flex justify-center">
-      <v-btn color="primary" @click="proceedToLogin">Proceed to log in</v-btn>
+      <v-btn color="primary" variant="elevated" @click="proceedToLogin">Proceed to log in</v-btn>
     </div>
   </v-app>
 </template>

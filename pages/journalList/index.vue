@@ -4,7 +4,7 @@
     <StreakCard class="mx-auto" />
     <br />
     <div class="d-flex justify-center">
-      <v-btn to="/journalList/createEntry" exact color="primary">Write QT Thoughts</v-btn>
+      <v-btn to="/journalList/createEntry" exact color="primary" variant="elevated">Write QT Thoughts</v-btn>
     </div>
     <br />
     <JournalCard

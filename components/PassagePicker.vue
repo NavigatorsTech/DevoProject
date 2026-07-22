@@ -26,6 +26,7 @@
           color="indigo"
           location="bottom right"
           position="fixed"
+          variant="elevated"
           icon
           @click="chapterChosen(3)"
         >

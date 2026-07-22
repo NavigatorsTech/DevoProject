@@ -12,11 +12,11 @@
       @draft-restored="onDraftRestored"
     />
     <div class="d-flex flex-wrap">
-      <v-btn class="ma-1" color="warning" @click="cancel">Cancel</v-btn>
-      <v-btn class="ma-1" color="primary" @click="copyContents">Share</v-btn>
+      <v-btn class="ma-1" color="warning" variant="elevated" @click="cancel">Cancel</v-btn>
+      <v-btn class="ma-1" color="primary" variant="elevated" @click="copyContents">Share</v-btn>
       <v-dialog v-model="updateDialog" persistent max-width="290">
         <template v-slot:activator="{ props: activatorProps }">
-          <v-btn class="ma-1" color="success" v-bind="activatorProps">Update</v-btn>
+          <v-btn class="ma-1" color="success" variant="elevated" v-bind="activatorProps">Update</v-btn>
         </template>
         <v-card>
           <v-card-title class="headline">Just to be sure...</v-card-title>
@@ -31,7 +31,7 @@
 
       <v-dialog v-model="deleteDialog" persistent max-width="290">
         <template v-slot:activator="{ props: activatorProps }">
-          <v-btn class="ma-1" color="error" v-bind="activatorProps">Delete</v-btn>
+          <v-btn class="ma-1" color="error" variant="elevated" v-bind="activatorProps">Delete</v-btn>
         </template>
         <v-card>
           <v-card-title class="headline">Just to be sure...</v-card-title>
