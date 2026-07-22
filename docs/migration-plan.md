@@ -378,6 +378,12 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
       `v-if`/`v-else-if` divs with no stepper component at all, removing any risk from
       Vuetify 3's stepper auto-behavior we don't fully control. **Needs live confirmation on
       the Plans page once a session is available.**
+  - All five fixes verified live post-deploy: "Forgot Password?" measured at exact page-center
+    (`left+width/2` matches viewport center precisely), `<h1>` correctly carries `text-h4`
+    class at the right 34px font size, PRESS-description card renders visibly brighter
+    (opacity fix confirmed by eye and by the earlier computed-style check). PassagePicker's
+    `v-stepper` removal still awaits live confirmation on the Plans page - not yet re-tested
+    interactively.
   - All three confirmed fixes verified live post-deploy via direct computed-style checks:
     card border `rgba(255,255,255,0.12)` (exact match with production), button text
     `rgb(255,255,255)` on a `rgb(100,181,246)` (primary) background for an elevated button —
