@@ -155,7 +155,28 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     genuinely blocked until Phase 5 migrates the layout - deferred to Parity QA. Also visible in
     dev server warnings, confirming they're pre-existing and unrelated to this phase: Vuetify 2
     component resolution failures (`v-list-item-content`) and the old `<nuxt/>` outlet.
-- [ ] **Phase 4** — Middleware & routing (auth/loginCheck, bracket params, useAsyncData/useHead, NuxtPage)
+- [x] **Phase 4** — Middleware & routing (auth/loginCheck, bracket params, useAsyncData/useHead, NuxtPage)
+  - Done: `middleware/{checkAuth,loginCheck}.js` retired in favor of `middleware/{checkAuth,
+    loginCheck}.ts` using `defineNuxtRouteMiddleware`. `checkAuth.ts` just calls the Pinia
+    `userStore.checkCookie()` — no more manual `req`/context plumbing, since `useCookie()`
+    (wired in Phase 2) is already SSR-universal. `loginCheck.ts` redirects to `/error` via
+    `navigateTo()` when not authenticated, same as before. Both are named (non-global)
+    middleware, matching the original's per-page opt-in (`middleware: ["checkAuth"]` or
+    `["checkAuth", "loginCheck"]`) — deliberately **not** wired to any page yet, since actually
+    attaching them via `definePageMeta({ middleware: [...] })` requires touching each page's
+    script, which is Phase 5's job (keeps this phase scoped to infrastructure, not page edits).
+  - Dynamic route folders renamed via `git mv`: `pages/journalList/_jid` →
+    `pages/journalList/[jid]`, `pages/plansList/_pid` → `pages/plansList/[pid]`. No other
+    routing changes yet — `asyncData`→`useAsyncData`, `<nuxt/>`→`<NuxtPage/>`, `head()`→
+    `useHead`, and `beforeRouteLeave`→`onBeforeRouteLeave` all live inside page/layout files
+    and are deferred to Phase 5 alongside the rest of each file's Vue 3 rewrite.
+  - Verified via `npx nuxt typecheck` (clean) and a live dev server boot with Chrome
+    navigation: requests to `/journalList/some-test-id` and `/plansList/some-test-id` both
+    reached real per-route handling (not a 404), confirming Nuxt 4's router correctly resolves
+    the renamed `[jid]`/`[pid]` bracket-param folders. The errors surfaced (a stale `@/store/
+    journalStore` import in `QTJournalEditor.vue`, and the same Phase 3/5-flagged
+    `layouts/default.vue` Vuex reference) are exactly the pre-identified, Phase-5-scoped
+    leftovers from removing Vuex in Phase 2 — not new issues introduced by this phase.
 - [ ] **Phase 5** — Components & layouts (Vue 2→3 + Vuetify 2→3; PlanEditor & PassagePicker are the heavy lifts)
 - [ ] **Phase 6** — Data validation scripts + reverse-proxy HTTPS + PM2/CI deploy
 - [ ] **Parity QA** — walk `FEATURES.md` §11 checklist against production; §10 security regressions; §12 data / §13 deploy go/no-go gates
