@@ -384,6 +384,43 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     (opacity fix confirmed by eye and by the earlier computed-style check). PassagePicker's
     `v-stepper` removal still awaits live confirmation on the Plans page - not yet re-tested
     interactively.
+  - **A third round of user feedback, this time with side-by-side screenshots directly
+    comparing production vs. the test deployment**, surfaced several more real, specific
+    issues:
+    - **"Forgot Password?" lost its blue link color** when it was switched from `v-card-text`
+      to a plain `<span>` to fix centering (§ above) - the original's bare `<a>` wrapper was
+      picking up an implicit link color that the plain span doesn't get. Fixed with an
+      explicit `text-primary` class.
+    - **The "plan selected" chip's text was being clipped by the chip's own rounded edge** -
+      confirmed from a screenshot showing literally "plan selecte" cut off mid-word. Root
+      cause: `PlanCard.vue`'s `v-card-actions` row (Update + Delete + chip + spacer + chevron)
+      has no wrap behavior in a `max-width="344"` card, so if Vuetify 3's button widths differ
+      even slightly from Vuetify 2's, the flex-shrinking chip's own `overflow: hidden` clips
+      its content. Fixed by adding `flex-wrap` to the actions row and `flex-shrink-0` to the
+      chip so it's never forced to shrink below its content width.
+    - **Pervasive, subtle-but-real spacing differences** across the login card, the PRESS
+      description, and the PassagePicker's chapter list (rows more spread out than production
+      in every case) - not one isolated bug but a systemic difference. Root cause: Vuetify 3
+      introduced "density" as a new, distinct concept from Vuetify 2's fixed spacing baseline,
+      and its own default reads more spacious. Fixed via Vuetify's documented global defaults
+      mechanism (`vuetifyOptions.defaults.global.density: 'comfortable'` in `nuxt.config.ts`),
+      which uniformly tightens every density-aware component at once rather than patching
+      dozens of individual components. **Not yet verified live** - full pixel-parity with
+      Vuetify 2's spacing may not be fully achievable without much more extensive custom CSS,
+      since the two major versions are genuinely different design-system implementations
+      under the hood; `comfortable` is a reasoned first attempt, not a guaranteed exact match.
+    - **PassagePicker's step-forward FAB overlapping the dialog's own Save button text** -
+      reviewed against the original Vuetify 2 markup and confirmed this is *inherited*
+      behavior (the original also used `fixed bottom right fab`, viewport-anchored regardless
+      of dialog context), visible in production's own screenshot too - not a regression
+      introduced by this migration, so left as-is rather than "fixed" beyond what production
+      itself does.
+    - **404 error page had no way to navigate except toward login** - added a "Go to
+      homepage" button alongside "Proceed to log in" (the original only ever had the login
+      option; this is a genuine UX gap the user identified, not a strict parity requirement,
+      and a small enough addition to make directly). The reported "card spacing looks off"
+      on this page should be addressed by the same global density fix above, since it shares
+      the same card/list-item components as the homepage.
   - All three confirmed fixes verified live post-deploy via direct computed-style checks:
     card border `rgba(255,255,255,0.12)` (exact match with production), button text
     `rgb(255,255,255)` on a `rgb(100,181,246)` (primary) background for an elevated button —

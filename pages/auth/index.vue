@@ -39,7 +39,7 @@
       </v-card>
     </v-form>
     <div class="d-flex justify-center mt-4">
-      <span style="cursor: pointer" @click="validate()">Forgot Password?</span>
+      <span class="text-primary" style="cursor: pointer" @click="validate()">Forgot Password?</span>
     </div>
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">
       {{ snackText }}

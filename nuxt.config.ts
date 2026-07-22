@@ -30,6 +30,16 @@ export default defineNuxtConfig({
   // not carried forward.
   vuetify: {
     vuetifyOptions: {
+      // Vuetify 3 introduced "density" as a new concept with its own default spacing,
+      // which reads visibly more spacious than Vuetify 2's fixed baseline ever was
+      // (confirmed by the user across the login card, PRESS description, and the
+      // PassagePicker chapter list all looking more spread out than production).
+      // "comfortable" tightens padding on every density-aware component at once.
+      defaults: {
+        global: {
+          density: 'comfortable'
+        }
+      },
       theme: {
         defaultTheme: 'qtDark',
         themes: {

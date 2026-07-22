@@ -3,7 +3,7 @@
     <v-card class="mx-auto" max-width="344">
       <v-card-title>{{ planName }}</v-card-title>
       <v-card-subtitle>{{ planDescription }}</v-card-subtitle>
-      <v-card-actions>
+      <v-card-actions class="flex-wrap">
         <v-btn :disabled="notOwner" variant="text" @click="$emit('update-plan', planID)">Update</v-btn>
 
         <v-dialog v-model="deleteDialog" persistent max-width="290">
@@ -26,7 +26,7 @@
         </v-dialog>
 
         <v-chip
-          class="ma-2"
+          class="ma-2 flex-shrink-0"
           size="small"
           color="primary"
           :variant="outlined ? 'outlined' : 'flat'"
