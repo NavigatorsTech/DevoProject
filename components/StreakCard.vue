@@ -15,7 +15,7 @@
       <v-btn to="/journalList/createEntry" exact color="primary" variant="text">Write today's thoughts</v-btn>
     </v-card-actions>
   </v-card>
-  <v-card v-else class="mx-auto" border
+  <v-card v-else class="mx-auto" border>
     <v-card-title class="d-flex align-center flex-wrap">
       <div class="d-flex align-center">
         <v-icon color="secondary" class="mr-2">mdi-fire</v-icon>
