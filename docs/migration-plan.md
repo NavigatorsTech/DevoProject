@@ -49,7 +49,38 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     and the system npm (11.3.0) hit a known arborist bug on this dependency graph — worked around
     by installing via `npx npm@11.18.0` with a scratch `--cache` dir rather than touching global
     npm state. Not a repo issue; flagging in case a clean install elsewhere hits the same npm bug.
-- [ ] **Phase 1** — Backend Express → Nitro (plugins, models, services, all `server/api/` endpoints, §10 bug fixes)
+- [x] **Phase 1** — Backend Express → Nitro (plugins, models, services, all `server/api/` endpoints, §10 bug fixes)
+  - Done: `server/index.js`, `server/routes/router.js`, `server/services/*` retired. New
+    `server/plugins/{mongo,firebase-admin}.ts`, `server/models/{User,Plan,QTEntry}.ts`,
+    `server/utils/{auth,bible-retrieval}.ts`, and all 12 `server/api/**/*.{get,post,put,delete}.ts`
+    endpoints. `bible-retrieval.ts` uses Nitro's `defineCachedFunction` (unstorage-backed) in
+    place of node-cache — same TTL semantics, one less dependency.
+  - §10 fixes landed: missing-Authorization-header now rejects (401) instead of silently
+    passing; journal PUT/DELETE now enforce ownership (IDOR closed) via a new generic
+    `requireOwner()` helper (also reused for Plan ownership); `creatorEmail` on journal (and
+    plan) creation is always taken from the verified token, never the client body; PUT/DELETE
+    `/plans` 404 on a nonexistent plan instead of null-dereferencing `.creatorEmail`; every
+    handler is async/await + throws `createError(...)` on failure (Nitro's error middleware
+    always sends a response — the old silent-hang class of bug can't recur).
+  - Journal update path uses `findOne` + mutate + `.save()` (not `findOneAndUpdate`) so
+    mongoose-field-encryption's pre-save hook reliably re-encrypts `thoughts`/
+    `applicationImplication` — worth a real check against prod data in Phase 6 regardless.
+  - **Contract decision**: since both server and client are being rewritten in this migration,
+    endpoints return plain JSON bodies + proper HTTP status codes (thrown via `createError`)
+    rather than replicating Express's `res.sendStatus()` text-body quirks — Phase 2's Pinia
+    stores are written against this new contract, not the old one. This doesn't affect user-
+    facing parity, only the internal wire format between this app's own frontend and backend.
+  - Verified live with `npm run dev` using a local (non-production) test Mongo + a deliberately
+    invalid ESV key + the real local `fb-service-account.json`: Firebase Admin initialized
+    successfully, Mongo connected, all 12 endpoints exercised — auth-gated ones correctly
+    return 401 with no Bearer token; `/api/passages/today` correctly fell back to the
+    Proverbs-of-the-day default when the plan lookup found nothing, and reached the real ESV
+    API (got a real 403 for the intentionally-bad key, proving the whole request pipeline
+    wired up end to end). Caught and fixed one real bug in the process: `mongoose`/
+    `mongoose-field-encryption`'s named exports aren't resolvable in Nitro's ESM runtime
+    (CommonJS interop) — fixed via default-import + destructure in all three model files.
+  - Deferred (not required for parity, noted in FEATURES.md §10 as a nice-to-have): IP-based
+    rate limiting on the public `/api/passages/today` endpoint as defense-in-depth.
 - [ ] **Phase 2** — State Vuex → Pinia (4 stores + SSR passage preload; drop reactivity workarounds; fix addPlan)
 - [ ] **Phase 3** — Plugins & auth wiring (firebase.client + token-sync unit, 401 retry, date helper, nuxt-gtag)
 - [ ] **Phase 4** — Middleware & routing (auth/loginCheck, bracket params, useAsyncData/useHead, NuxtPage)
