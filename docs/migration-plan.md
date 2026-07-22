@@ -39,7 +39,16 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
 
 ## Progress checklist
 
-- [ ] **Phase 0** — Scaffold Nuxt 4 + tooling (package.json swap, nuxt.config.ts, Vuetify 3 dark theme, public/, tsconfig)
+- [x] **Phase 0** — Scaffold Nuxt 4 + tooling (package.json swap, nuxt.config.ts, Vuetify 3 dark theme, public/, tsconfig)
+  - Done: package.json rebuilt for Nuxt 4/Vue 3/Vuetify 3/Pinia 3/mongoose 8; nuxt.config.ts
+    (dark-only Vuetify 3 theme, runtimeConfig, vuetify-nuxt-module/@pinia/nuxt/nuxt-gtag); static/
+    → public/; .gitignore covers .output/. `npm install` + `npx nuxt prepare` verified clean
+    (855 packages, `.nuxt` types generated, no fatal errors — fsevents optional-dep build failure
+    is expected/harmless on this platform).
+  - Note: local npm cache (~/.npm) had root-owned files from a prior run causing EACCES failures,
+    and the system npm (11.3.0) hit a known arborist bug on this dependency graph — worked around
+    by installing via `npx npm@11.18.0` with a scratch `--cache` dir rather than touching global
+    npm state. Not a repo issue; flagging in case a clean install elsewhere hits the same npm bug.
 - [ ] **Phase 1** — Backend Express → Nitro (plugins, models, services, all `server/api/` endpoints, §10 bug fixes)
 - [ ] **Phase 2** — State Vuex → Pinia (4 stores + SSR passage preload; drop reactivity workarounds; fix addPlan)
 - [ ] **Phase 3** — Plugins & auth wiring (firebase.client + token-sync unit, 401 retry, date helper, nuxt-gtag)
