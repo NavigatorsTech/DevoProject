@@ -324,6 +324,25 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     typed text, standard Material text-field behavior, matching what Vuetify 2 also does. No
     difference found from what's expected; flagged back to the user for a more specific
     repro (screenshot/video) rather than changing something that already appears correct.
+  - All three confirmed fixes verified live post-deploy via direct computed-style checks:
+    card border `rgba(255,255,255,0.12)` (exact match with production), button text
+    `rgb(255,255,255)` on a `rgb(100,181,246)` (primary) background for an elevated button —
+    both correct.
+  - **Transient infrastructure incident during this deployment, unrelated to the app code**:
+    mid-redeploy, the production server briefly lost the ability to establish *new* outbound
+    connections (to GitHub for `git fetch`, and to MongoDB Atlas), while already-established
+    connections — notably production's own long-lived Mongo pool — kept working fine, so
+    **production was never actually affected or at risk**. Initially suspected the `ufw` rule
+    opening port 8443 for this test deployment as the cause, but the user checked
+    `ufw status verbose` and found outgoing traffic was `allow`-by-default with no restricting
+    rule, ruling that out. The connectivity recovered on its own within a few minutes (self-
+    resolving network blip, cause undetermined - possibly upstream at the hosting
+    provider). Confirmed via direct `nc`/`curl` tests to both GitHub and the Atlas shard host
+    before and after. Worth keeping in mind for the real production cutover: a transient
+    outbound blip to Mongo Atlas would surface as slow/failing requests degrading gracefully
+    to the fallback passage (as designed), not a crash - matches the intended fallback
+    behavior in `server/api/passages/today.get.ts` working as designed under real failure
+    conditions, which is itself a small positive data point.
   - **Real bug found via this real deployment, fixed in `nuxt.config.ts`**: server-only
     `runtimeConfig` secrets (`mongodbAccess`, `mongooseSecret`, `esvApiKey`,
     `firebaseServiceAccountPath`) were being defaulted from bare `process.env.X` reads
