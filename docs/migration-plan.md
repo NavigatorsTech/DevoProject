@@ -474,6 +474,29 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     `NUXT_FIREBASE_SERVICE_ACCOUNT_PATH` — not the bare names used in the old Express
     `ecosystem.config.js`.**
 - [ ] **Parity QA** — walk `FEATURES.md` §11 checklist against production; §10 security regressions; §12 data / §13 deploy go/no-go gates
+  - **§10 security regressions verified live via curl against the deployed test instance** (no
+    login needed - these test the *rejection* path): every protected endpoint
+    (`/api/plans` GET/PUT/DELETE, `/api/qtJournalEntries` GET/PUT/DELETE,
+    `/api/users/planChosen`) correctly returns 401 with no Authorization header, closing the
+    original unauthenticated-`/users/planChosen` gap and confirming the missing-header-silently-
+    passes bug stays fixed. `/api/passages/today` correctly stays public (200); the arbitrary
+    `/api/passages?passageReference=` lookup now correctly requires auth (401), matching the
+    §10 decision to gate it. The null-plan-404 guard and the IDOR ownership checks specifically
+    (as opposed to the auth-presence checks above) need a *valid* token to exercise past the
+    auth gate, so those still need the user's own live testing.
+  - **§12 data validation: done and passing** (see Phase 6 above) - encryption round-trip and
+    Plan.passages shape both clean; one pre-existing dangling `planChosen` found and flagged,
+    not blocking.
+  - **§13 deploy: runbook written, not yet executed for real** (see Phase 6's cutover runbook) -
+    the actual production cutover is a separate decision from finishing this plan.
+  - **Still needs the user's own hands-on testing** (login/account actions are explicitly not
+    something this assistant performs) before this checklist item can be marked done: the full
+    §11 authenticated-flow walkthrough - login/register/Google/password-reset/idle-cap/logout,
+    journal create/update/delete + drafts + streak, plan create/update/delete + PassagePicker
+    interaction. Three rounds of visual/functional bugs have already been found and fixed this
+    way (button variants, card borders, typography, opacity, centering, chip truncation,
+    density) - this is the gate that's actually been catching real regressions, more than any
+    other single check in this whole migration.
 
 ---
 
