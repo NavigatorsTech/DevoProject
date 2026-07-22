@@ -288,6 +288,42 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     default that produces no error, just a silently different look — can only be caught by an
     actual visual comparison against production, not by typecheck/build/functional testing
     alone. Worth a full page-by-page visual sweep, not just the pages checked so far.
+  - **Three more real visual bugs found from a second round of user feedback + live
+    comparison, fixed:**
+    - **Button text was black instead of white** on `success`/`info`/etc. colored buttons.
+      Vuetify 3 auto-computes `on-<color>` (text/icon color) via a contrast calculation unless
+      overridden, and for lighter theme colors (bright green `success`, light amber
+      `secondary`) that computes to black. Vuetify 2 always used white text on colored buttons
+      regardless of the contrast math. Fixed by explicitly setting `on-primary`/`on-secondary`/
+      `on-accent`/`on-info`/`on-warning`/`on-error`/`on-success` to `#FFFFFF` in the theme's
+      `colors` block in `nuxt.config.ts` (not the sibling `variables` block, which is for
+      generic CSS custom properties like border-opacity, not per-color text overrides).
+    - **Cards had a solid, full-opacity white border** instead of production's soft ~12%-opacity
+      one. Confirmed by diffing computed styles directly: production's `.v-sheet--outlined`
+      border is `rgba(255,255,255,0.12)`; the test deployment's `.v-card--variant-outlined`
+      was `rgb(255,255,255)` at full opacity. Vuetify 3's `variant="outlined"` uses a crisp,
+      literal border by design, separate from the theme-aware `border-opacity` CSS variable
+      that its dedicated `border` boolean prop uses. Fixed by replacing `variant="outlined"`
+      with the plain `border` prop on all 4 affected cards (`StreakCard.vue` ×2, `pages/
+      index.vue`'s PRESS card, `error.vue`'s card). `Passage.vue`/`JournalCard.vue`/
+      `PlanCard.vue`'s cards use Vuetify's default elevated (shadow, no border) style in both
+      versions and were never affected.
+    - **"Forgot Password?" wasn't centered** on the auth page. Root cause: `<v-form>` wrapped
+      the *entire* page (card + forgot-password link + snackbar), and `v-form` shrink-wraps to
+      its widest child (the 400px-wide card) rather than spanning full width or self-centering
+      — so the `d-flex justify-center` div nested inside it only centered within that narrow,
+      left-anchored box, not the actual page. Fixed by tightening `<v-form>` around just the
+      card (the only part that actually needs form-validation state) and wrapping the whole
+      page in a plain root `<div>`, so the centering div now spans the full page width as
+      intended.
+  - **Investigated and could not reproduce**: user reported textarea/field labels in the
+    create/update-entry pages "don't disappear like they used to." Live-tested by typing into
+    the actual Title and "This part of the passage..." textarea on the test deployment (using
+    an already-authenticated session from the user's own prior testing, not a session created
+    by this work) — in both cases the label correctly floats up into a small caption above the
+    typed text, standard Material text-field behavior, matching what Vuetify 2 also does. No
+    difference found from what's expected; flagged back to the user for a more specific
+    repro (screenshot/video) rather than changing something that already appears correct.
   - **Real bug found via this real deployment, fixed in `nuxt.config.ts`**: server-only
     `runtimeConfig` secrets (`mongodbAccess`, `mongooseSecret`, `esvApiKey`,
     `firebaseServiceAccountPath`) were being defaulted from bare `process.env.X` reads

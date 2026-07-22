@@ -42,7 +42,18 @@ export default defineNuxtConfig({
               info: '#4DB6AC', // teal.lighten1
               warning: '#FFC107', // amber.base
               error: '#FF3D00', // deepOrange.accent4
-              success: '#00E676' // green.accent3
+              success: '#00E676', // green.accent3
+              // Vuetify 3 auto-computes on-<color> text/icon color via a contrast
+              // calculation unless overridden - for some of these (bright success green,
+              // light amber secondary) that computes to black text. Vuetify 2 always used
+              // white text on colored buttons regardless of contrast math; force that back.
+              'on-primary': '#FFFFFF',
+              'on-secondary': '#FFFFFF',
+              'on-accent': '#FFFFFF',
+              'on-info': '#FFFFFF',
+              'on-warning': '#FFFFFF',
+              'on-error': '#FFFFFF',
+              'on-success': '#FFFFFF'
             }
           }
         }

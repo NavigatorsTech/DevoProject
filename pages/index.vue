@@ -3,7 +3,7 @@
     <v-container>
       <v-row justify="center">
         <v-col cols="12" md="10">
-          <v-card variant="outlined">
+          <v-card border>
             <v-list-item>
               <v-list-item-title class="headline mb-1 text-wrap">
                 Your Personal QT and Journaling App

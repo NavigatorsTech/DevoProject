@@ -1,41 +1,43 @@
 <template>
-  <v-form ref="lazyForm">
-    <v-card width="400" class="mx-auto mt-5">
-      <v-card-title>
-        <h1 class="display-1">Login</h1>
-      </v-card-title>
-      <v-card-text>
-        <v-text-field
-          v-model="email"
-          :rules="emailRules"
-          label="Email"
-          prepend-icon="mdi-account-circle"
-          required
-        />
-        <v-text-field
-          v-model="password"
-          :type="showPassword ? 'text' : 'password'"
-          label="Password"
-          prepend-icon="mdi-lock"
-          :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-          @click:append="showPassword = !showPassword"
-          @keyup.enter="login"
-        />
-      </v-card-text>
-      <v-divider />
-      <v-card-actions>
-        <v-btn color="success" variant="elevated" @click="register">Register</v-btn>
-        <v-spacer />
-        <v-btn color="info" variant="elevated" @click="login">Login</v-btn>
-      </v-card-actions>
-      <v-divider />
-      <v-card-actions>
-        <v-btn block variant="outlined" @click="loginWithGoogle">
-          <v-icon class="mr-2">mdi-google</v-icon>
-          Sign in with Google
-        </v-btn>
-      </v-card-actions>
-    </v-card>
+  <div>
+    <v-form ref="lazyForm">
+      <v-card width="400" class="mx-auto mt-5">
+        <v-card-title>
+          <h1 class="display-1">Login</h1>
+        </v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="email"
+            :rules="emailRules"
+            label="Email"
+            prepend-icon="mdi-account-circle"
+            required
+          />
+          <v-text-field
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            label="Password"
+            prepend-icon="mdi-lock"
+            :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+            @click:append="showPassword = !showPassword"
+            @keyup.enter="login"
+          />
+        </v-card-text>
+        <v-divider />
+        <v-card-actions>
+          <v-btn color="success" variant="elevated" @click="register">Register</v-btn>
+          <v-spacer />
+          <v-btn color="info" variant="elevated" @click="login">Login</v-btn>
+        </v-card-actions>
+        <v-divider />
+        <v-card-actions>
+          <v-btn block variant="outlined" @click="loginWithGoogle">
+            <v-icon class="mr-2">mdi-google</v-icon>
+            Sign in with Google
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-form>
     <div class="d-flex justify-center">
       <v-card-text style="cursor: pointer" @click="validate()">Forgot Password?</v-card-text>
     </div>
@@ -43,7 +45,7 @@
       {{ snackText }}
       <v-btn variant="text" @click="snack = false">Close</v-btn>
     </v-snackbar>
-  </v-form>
+  </div>
 </template>
 
 <script setup lang="ts">
