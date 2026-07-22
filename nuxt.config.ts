@@ -54,13 +54,19 @@ export default defineNuxtConfig({
     id: 'G-TDZSY166ND'
   },
 
+  // Server-only secrets are intentionally NOT read from process.env here — this file is
+  // evaluated once at build time, so a bare `process.env.X` default gets baked into the
+  // compiled .output and silently ignored thereafter. These must be supplied purely via
+  // Nitro's automatic NUXT_-prefixed runtime env var overrides (NUXT_MONGODB_ACCESS,
+  // NUXT_MONGOOSE_SECRET, NUXT_ESV_API_KEY, NUXT_CACHE_TTL,
+  // NUXT_FIREBASE_SERVICE_ACCOUNT_PATH), read fresh every time the compiled server boots -
+  // in dev, in the test deployment, and in production alike.
   runtimeConfig: {
-    // Server-only (available via useRuntimeConfig() on the server)
-    mongodbAccess: process.env.MONGODB_ACCESS,
-    mongooseSecret: process.env.MONGOOSE_SECRET,
-    esvApiKey: process.env.ESVAPI_KEY,
-    cacheTtl: process.env.CACHE_TTL || '3600',
-    firebaseServiceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH || 'fb-service-account.json',
+    mongodbAccess: '',
+    mongooseSecret: '',
+    esvApiKey: '',
+    cacheTtl: '3600',
+    firebaseServiceAccountPath: 'fb-service-account.json',
 
     // Public (exposed to the client — safe, matches today's inline Firebase client config)
     public: {

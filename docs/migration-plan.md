@@ -241,6 +241,27 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     Parity QA, which should use dedicated test credentials rather than whatever a browser's
     password manager happens to autofill.
 - [ ] **Phase 6** — Data validation scripts + reverse-proxy HTTPS + PM2/CI deploy
+  - In progress: setting up a parallel test deployment on the real production server
+    (`/home/roger/QTNuxtProject-v4-test`, Node 20 via `nvm` since the server's system Node is
+    v14, PM2 process `qtapp-v4test` on `127.0.0.1:3001`), pointed at an isolated
+    `devoProjDB_v4test` Mongo database (same Atlas cluster/credentials, seeded with only the
+    non-sensitive default-plan document — no real user data copied). Reuses the real Firebase
+    project (same `fb-service-account.json`) since no user re-registration is needed per §12.
+  - **Real bug found via this real deployment, fixed in `nuxt.config.ts`**: server-only
+    `runtimeConfig` secrets (`mongodbAccess`, `mongooseSecret`, `esvApiKey`,
+    `firebaseServiceAccountPath`) were being defaulted from bare `process.env.X` reads
+    *inside* `nuxt.config.ts` — which is evaluated once at **build** time, not at runtime. A
+    production build run without those bare env vars set bakes in `undefined`/stale values
+    that Nitro's actual runtime-override mechanism (`NUXT_`-prefixed env vars, e.g.
+    `NUXT_MONGODB_ACCESS`) can't retroactively fix unless the *correct* prefixed name is used
+    at deploy time — the test deployment's first boot threw `MongoParseError: Invalid scheme`
+    for exactly this reason. Fixed by removing the `process.env.X` build-time reads entirely
+    (empty/static defaults now) so these are supplied purely via `NUXT_`-prefixed env vars
+    everywhere — dev, test, and eventual production — with no dual convention to confuse.
+    **This means any future deploy (including the real production migration) must set
+    `NUXT_MONGODB_ACCESS`, `NUXT_MONGOOSE_SECRET`, `NUXT_ESV_API_KEY`, `NUXT_CACHE_TTL`, and
+    `NUXT_FIREBASE_SERVICE_ACCOUNT_PATH` — not the bare names used in the old Express
+    `ecosystem.config.js`.**
 - [ ] **Parity QA** — walk `FEATURES.md` §11 checklist against production; §10 security regressions; §12 data / §13 deploy go/no-go gates
 
 ---
