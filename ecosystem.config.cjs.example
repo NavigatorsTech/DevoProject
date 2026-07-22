@@ -1,0 +1,44 @@
+// Template for production's PM2 process config under Nitro.
+//
+// This is NOT loaded automatically - copy it to ecosystem.config.cjs on the
+// production server (never commit that file; it holds real secrets) and fill
+// in the real values. The previous ecosystem.config.js (Express-based app)
+// lived only on the server, never in this repo - this template exists so the
+// shape of the config isn't something that has to be reverse-engineered off
+// a live server again (see docs/migration-plan.md Phase 6).
+//
+// Filename must end in .cjs, not .js: package.json sets "type": "module", so
+// PM2's own CommonJS config loader can't parse a plain .js file in this repo.
+//
+// Unlike the old Express app, this process does NOT read SSLKEY/SSLCERT and
+// does NOT terminate HTTPS itself - Nitro serves plain HTTP on port 3000, and
+// nginx (already installed and already terminating TLS for the existing site)
+// should proxy_pass to it, exactly like the test deployment's nginx block did.
+//
+// All secrets below MUST use the NUXT_ prefix - see nuxt.config.ts's comment
+// on why: these are read at server *boot* via Nitro's runtime-config
+// convention, not baked in at build time the way the old bare env var names
+// were.
+module.exports = {
+  apps: [
+    {
+      name: 'qtapp',
+      cwd: '/QTNuxtProject',
+      script: '.output/server/index.mjs',
+      // Point at a Node 20+ binary explicitly (e.g. via nvm) if the system
+      // Node is still on the older version the previous Express app used -
+      // see the test deployment's ecosystem.config.cjs for the exact pattern.
+      interpreter: 'node',
+      instances: 'max',
+      exec_mode: 'cluster',
+      env: {
+        PORT: '3000',
+        HOST: '127.0.0.1',
+        NUXT_ESV_API_KEY: 'REPLACE_ME',
+        NUXT_MONGODB_ACCESS: 'REPLACE_ME',
+        NUXT_MONGOOSE_SECRET: 'REPLACE_ME',
+        NUXT_CACHE_TTL: '86400'
+      }
+    }
+  ]
+}

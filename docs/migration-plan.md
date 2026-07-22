@@ -240,7 +240,25 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     a real authenticated session against the real Firebase project. Deferred to Phase 6 /
     Parity QA, which should use dedicated test credentials rather than whatever a browser's
     password manager happens to autofill.
-- [ ] **Phase 6** — Data validation scripts + reverse-proxy HTTPS + PM2/CI deploy
+- [x] **Phase 6** — Data validation scripts + reverse-proxy HTTPS + PM2/CI deploy
+  - **Data validation (§12) run against real production data, read-only, zero writes**:
+    `scripts/validate-data.mjs` reads `MONGODB_ACCESS`/`MONGOOSE_SECRET` out of the *path* to
+    the real deployed `ecosystem.config.js` (passed as a CLI argument) rather than accepting
+    them inline, so running it never required typing production credentials into a shell
+    command. Results:
+    - **QTEntry encryption round-trip: 15/15 sampled entries decrypt correctly** under
+      Mongoose 8 + the existing `mongoose-field-encryption` setup - confirms no
+      re-encryption/migration is needed for existing journal entries.
+    - **Plan.passages nested Map-of-Map shape: 3/3 real plans (including the 74-month
+      default plan) deserialize correctly** under the new schema.
+    - **User.planChosen referential integrity: 1 real, pre-existing failure found** -
+      `shannen.rajoo@gmail.com`'s `planChosen` (`620770e5650e63054cdee16a`) doesn't match any
+      existing Plan document. This is a genuine data-quality issue already present in
+      production, not something the migration caused. Not a crash: the app's existing
+      fallback-to-default-plan behavior means this user just silently sees the Proverbs
+      default instead of their intended plan. Flagged for the user's awareness/decision
+      (script deliberately doesn't auto-fix - this is user data, not something to silently
+      rewrite) rather than blocking the migration on it.
   - **Live parallel test deployment stood up and verified working** on the real production
     server, alongside the untouched live Nuxt 2 app:
     - `/home/roger/QTNuxtProject-v4-test` — `nuxt4-migration` branch (fetched from the
@@ -637,6 +655,51 @@ Convert all SFCs to `<script setup lang="ts">`. Apply the §7 breaking-change ch
 - **`runtimeConfig` secrets** (consolidate scattered `process.env.*`): `MONGODB_ACCESS`,
   `ESVAPI_KEY`, `MONGOOSE_SECRET`, `CACHE_TTL`, firebase admin creds path; `public` side gets the
   firebase client config. Nitro auto-loads `.env` in dev (drop `dotenv`).
+
+### Cutover runbook (validated end-to-end via the parallel test deployment)
+
+Everything below was actually built and exercised against the real production server on
+`qt.navigators.tech:8443` (a parallel deployment, isolated test database, zero impact on the
+live site) before being written down here - this isn't a plan, it's a tested procedure.
+
+1. **Data validation gate**: run `node scripts/validate-data.mjs /QTNuxtProject/ecosystem.config.js`
+   from a checkout with `mongoose`/`mongoose-field-encryption` installed. Confirmed passing
+   against real production data: QTEntry encryption round-trip, Plan.passages shape. **One
+   known pre-existing failure** (unrelated to this migration): `shannen.rajoo@gmail.com` has a
+   dangling `planChosen` reference — decide whether to fix this user's record before or after
+   cutover; it's non-fatal (falls back to the default passage) either way.
+2. **Node version**: the server's system Node (v14) is too old for Nuxt 4. Install Node 20 via
+   `nvm` for the deploy user (additive — doesn't touch the existing Node 14 install or require
+   root), exactly as done for the test deployment. `.github/workflows/deploy.yml`'s SSH script
+   now sources `nvm` and runs `nvm use 20` before building/restarting.
+3. **`ecosystem.config.cjs`**: copy `ecosystem.config.cjs.example` (committed in this repo) to
+   `/QTNuxtProject/ecosystem.config.cjs` and fill in the real `NUXT_`-prefixed secrets (reuse
+   the same MongoDB Atlas/ESV/encryption-secret values already in the current
+   `ecosystem.config.js` — just renamed to the `NUXT_` convention, see the earlier Phase 6 note
+   on why the bare names silently don't work). **Filename must be `.cjs`**, not `.js` — PM2's
+   own config loader is CommonJS and this repo's `package.json` sets `"type": "module"`, which
+   breaks a plain `.js` config exactly as it did for the test deployment.
+4. **Reverse proxy**: update the *existing* `/etc/nginx/sites-available/qt.navigators.tech`
+   block's `proxy_pass` from `https://127.0.0.1:3000` (the old app terminated TLS itself) to
+   `http://127.0.0.1:3000` (Nitro serves plain HTTP; nginx keeps doing all TLS termination with
+   the same existing cert — no new cert or DNS change needed). Confirmed this exact pattern
+   works via the test deployment's own nginx block on port 8443.
+5. **Deploy**: merging `nuxt4-migration` to `master` triggers the updated
+   `.github/workflows/deploy.yml`, which now builds `.output/` instead of `.nuxt`, restarts via
+   `ecosystem.config.cjs`, and health-checks `http://127.0.0.1:3000/` (no more `-k`/https flag —
+   the app itself no longer speaks TLS).
+6. **Rollback**: the workflow's existing rollback-on-failed-health-check logic is unchanged in
+   shape (`git reset --hard $PREV` + rebuild + restart) and still applies — just note that a
+   rollback after this cutover reverts to the *old* Nuxt 2/Express codebase, which means the
+   nginx `proxy_pass` scheme (step 4) would need to be flipped back to `https://` too if a
+   rollback ever actually happens, since the two app versions don't share a TLS-termination
+   story. Worth a one-line comment in the nginx config noting which app version expects which
+   scheme.
+7. **After cutover**: close the temporary `ufw` rule for port 8443 and decommission
+   `/home/roger/QTNuxtProject-v4-test` (PM2 `qtapp-v4test` process, the `qt-v4test` nginx site,
+   and the `devoProjDB_v4test` database) once the real cutover is confirmed stable — this was
+   always meant to be temporary test infrastructure, not something to leave running alongside
+   production indefinitely.
 
 ---
 
