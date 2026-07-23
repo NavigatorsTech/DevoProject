@@ -21,22 +21,23 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
-    "@pinia/nuxt": "^0.11.0",
-    "firebase": "^11.0.0",
-    "firebase-admin": "^13.0.0",
+    "@pinia/nuxt": "^1.0.1",
+    "@vue/devtools-api": "^8.1.5",
+    "firebase": "^12.16.0",
+    "firebase-admin": "^14.2.0",
     "mongoose": "^8.9.0",
     "mongoose-field-encryption": "^3.0.6",
-    "nuxt": "^4.0.0",
-    "nuxt-gtag": "^3.0.0",
-    "pinia": "^3.0.0",
+    "nuxt": "^4.5.0",
+    "nuxt-gtag": "^4.1.0",
+    "pinia": "^4.0.2",
     "vue": "^3.5.0",
-    "vue-router": "^4.5.0",
+    "vue-router": "^5.2.0",
     "vuetify": "^3.7.0",
-    "vuetify-nuxt-module": "^0.18.0"
+    "vuetify-nuxt-module": "^0.19.5"
   },
   "devDependencies": {
     "@mdi/font": "^7.4.0",
     "typescript": "^5.7.0",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^3.3.8"
   }
 }
