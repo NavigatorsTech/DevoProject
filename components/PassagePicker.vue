@@ -14,23 +14,12 @@
     <div v-else-if="currentStep === 2">
       <v-list class="sList">
         <v-list-item v-for="i in chosenBook?.bookChapters ?? 0" :key="i">
-          <template v-slot:prepend>
-            <v-checkbox v-model="ccSelected[i]" color="primary" />
-          </template>
-          <v-list-item-title>Chapter {{ i }}</v-list-item-title>
+          <div class="d-flex align-center">
+            <v-checkbox v-model="ccSelected[i]" color="primary" density="compact" hide-details class="flex-grow-0" />
+            <span>Chapter {{ i }}</span>
+          </div>
         </v-list-item>
       </v-list>
-      <v-btn
-        v-show="anyChapterSelected"
-        color="indigo"
-        location="bottom right"
-        position="fixed"
-        variant="elevated"
-        icon
-        @click="chapterChosen(3)"
-      >
-        <v-icon>mdi-arrow-right</v-icon>
-      </v-btn>
     </div>
     <div v-else-if="currentStep === 3">
       <v-label>Starting Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[0] }}</v-label>
@@ -67,7 +56,11 @@ const props = defineProps<{
   modelValue?: string
 }>()
 
-const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+  ready: [value: boolean]
+  canAdvance: [value: boolean]
+}>()
 
 const currentStep = ref(1)
 const chosenBook = ref<BibleBook | null>(null)
@@ -86,6 +79,14 @@ function chapterChosen(nextStep: number) {
   chosenChapter.value = Object.keys(ccSelected.value)
     .filter((i) => ccSelected.value[Number(i)] === true)
     .map(Number)
+
+  // Default to the whole selected chapter range (most plans reference full
+  // chapters) rather than leaving the stale 'Verse 1' default, which collapsed
+  // any selection down to a degenerate single-verse reference.
+  const lastChapter = chosenChapter.value[chosenChapter.value.length - 1]
+  const lastChapterVerseCount = lastChapter != null ? chosenBook.value?.bookVerses[lastChapter - 1] ?? 1 : 1
+  sV.value = 'Verse 1'
+  eV.value = 'Verse ' + lastChapterVerseCount
 }
 
 function verseList(n: number | undefined): string[] {
@@ -98,6 +99,7 @@ function verseList(n: number | undefined): string[] {
 }
 
 const anyChapterSelected = computed(() => Object.values(ccSelected.value).some((v) => v === true))
+const canAdvance = computed(() => currentStep.value === 2 && anyChapterSelected.value)
 
 // To structure returned passage properly, need to check if verses are not
 // contiguous / validation of some sort
@@ -124,6 +126,15 @@ watch(chosenPassage, (value) => {
   if (value) emit('update:modelValue', value)
 })
 
+// Lets the parent render its own "Next"/"Save" actions (alongside Cancel) in a
+// single action bar instead of the picker owning a separate button of its own.
+watch(currentStep, (step) => emit('ready', step === 3), { immediate: true })
+watch(canAdvance, (value) => emit('canAdvance', value), { immediate: true })
+
+function advance() {
+  chapterChosen(3)
+}
+
 // Resets the wizard back to step 1 for the next time this picker is opened.
 // Called by the parent (via template ref) when its edit dialog closes -
 // replaces the old parent-mutates-a-shared-prop broadcast pattern.
@@ -136,7 +147,7 @@ function reset() {
   eV.value = 'Verse 1'
 }
 
-defineExpose({ reset })
+defineExpose({ reset, advance })
 </script>
 
 <style scoped>

@@ -50,12 +50,21 @@
               <v-card>
                 <v-card-title>Day {{ row.day }}</v-card-title>
                 <v-card-text>
-                  <PassagePicker :ref="(el) => setPickerRef(row.day, el)" :ppID="row.day" v-model="row.passage" />
+                  <PassagePicker
+                    :ref="(el) => setPickerRef(row.day, el)"
+                    :ppID="row.day"
+                    v-model="row.passage"
+                    @ready="(v) => (pickerReady[row.day] = v)"
+                    @can-advance="(v) => (pickerCanAdvance[row.day] = v)"
+                  />
                 </v-card-text>
                 <v-card-actions>
                   <v-spacer />
                   <v-btn color="warning" variant="text" @click="cancelEdit(row.day)">Cancel</v-btn>
-                  <v-btn color="success" variant="text" @click="saveEdit(row.day)">Save</v-btn>
+                  <v-btn v-if="pickerCanAdvance[row.day]" color="indigo" variant="text" @click="pickerRefs[row.day]?.advance()">
+                    Next
+                  </v-btn>
+                  <v-btn v-if="pickerReady[row.day]" color="success" variant="text" @click="saveEdit(row.day)">Save</v-btn>
                 </v-card-actions>
               </v-card>
             </v-dialog>
@@ -132,6 +141,8 @@ const snackColor = ref('')
 const snackText = ref('')
 
 const dialogOpen = ref<Record<number, boolean>>({})
+const pickerReady = ref<Record<number, boolean>>({})
+const pickerCanAdvance = ref<Record<number, boolean>>({})
 const pickerRefs: Record<number, any> = {}
 
 function setPickerRef(day: number, el: any) {
