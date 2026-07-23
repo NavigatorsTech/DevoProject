@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
       - run: npm ci
       - run: npm run build
@@ -39,10 +39,10 @@ jobs:
 
             # Nuxt 4 requires Node 18+; the box's system Node may still be on an
             # older version installed for the previous Express-based app. Load nvm
-            # if present so this deploy always builds/runs under Node 20 regardless
-            # of what the shell's default `node` resolves to.
+            # if present so this deploy always builds/runs under Node 24 (current
+            # Active LTS) regardless of what the shell's default `node` resolves to.
             export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && nvm use 20
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && nvm use 24
 
             restart_app() {
               pm2 delete ecosystem.config.cjs 2>/dev/null || true
