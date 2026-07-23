@@ -767,6 +767,56 @@ live site) before being written down here - this isn't a plan, it's a tested pro
    always meant to be temporary test infrastructure, not something to leave running alongside
    production indefinitely.
 
+### Cutover executed (2026-07-23)
+
+Production is live on the Nuxt 4/Nitro app as of this date. What actually happened differed from
+the plan above in some real, worth-recording ways:
+
+- **Blue/green instead of kill-and-restart-in-place.** An adversarial review before executing
+  found that the original plan (push → CI kills the old app, starts the new one on the same port)
+  had two real gaps: nginx's in-memory config doesn't update until an explicit reload (so there's
+  a live-downtime window between the old app dying and a manual reload, not just a brief bind
+  gap), and the automatic rollback-on-failed-health-check restores the *old Nuxt 2 code* but
+  restarts it via the *new* `ecosystem.config.cjs` (NUXT_-prefixed, plain-HTTP) — which old
+  Nuxt 2/Express doesn't understand. So the actual swap was done manually over SSH: brought the
+  new app up on a spare port (3001) under a temporary PM2 name (`qtapp-cutover`) alongside the
+  still-running old app on 3000, verified it against real production data, then did a single
+  `nginx` reload to flip live traffic — zero-downtime by construction, with the old app staying
+  up as an instant fallback the whole time. Only after that was confirmed stable did the old app
+  get retired and the new one consolidated onto the canonical port 3000 / name `qtapp`.
+- **`/QTNuxtProject` itself got replaced**, not just its contents refreshed — the new app's
+  checkout was moved to that exact path (old one preserved at
+  `/home/roger/QTNuxtProject-nuxt2-backup`, untouched, never deleted) so the existing
+  `deploy.yml`'s `cd /QTNuxtProject` keeps working for future automated deploys. `origin` on that
+  checkout now points at `NavigatorsTech/DevoProject` (matching what `deploy.yml` expects); a
+  `fork` remote to `rogeryeosgit/DevoProject` is also present from the migration work.
+- **Real PM2 bug found**: `interpreter: 'node'` (a bare string) in `ecosystem.config.cjs` did
+  *not* resolve to the nvm-installed Node 20 — it silently used the PM2 daemon's own long-running
+  environment (system Node 14), causing a syntax error on start (`||=` isn't valid Node 14
+  syntax). This only happened in `cluster`/`instances: 'max'` mode; `exec_mode: 'fork'` with
+  `instances: 1` **and an absolute interpreter path**
+  (`/home/roger/.nvm/versions/node/v20.20.2/bin/node`) works correctly and is what's actually
+  deployed. **`ecosystem.config.cjs.example` in this repo still shows `cluster`/`'node'`/`'max'`
+  and should be updated to match** — tracked as a follow-up, not yet fixed.
+- **`package-lock.json` had drifted out of sync with `package.json`** (pre-existing, unrelated to
+  this migration — likely from an `npm install` run at some point without the lock file being
+  committed). This silently broke `npm ci` both locally and in the first real CI run against
+  NavigatorsTech/DevoProject (the `validate` job failed before ever reaching the `deploy` job, so
+  production was never at risk — just a failed CI run). Fixed by regenerating the lock file via
+  `npm install` and verifying `npm ci`/`npm run build` both succeed clean before committing.
+- **Two Mongo Atlas secrets from the now-decommissioned `:8443` test deployment were briefly
+  displayed in a terminal** while debugging the PM2 interpreter issue (a `cat` of the test
+  deployment's own backup config, not the real production secrets) — low actual risk since they
+  only ever granted access to the isolated, non-sensitive `devoProjDB_v4test` test database, but
+  flagged to the user to rotate the ESV API key and Mongoose encryption secret used by that test
+  config out of caution.
+- The isolated `devoProjDB_v4test` database itself was **not** fully dropped — the Mongo Atlas
+  application user lacks `dropDatabase` privileges (document-level read/write only). Left in
+  place (empty of anything sensitive - just the one seeded default-plan document) pending the
+  user optionally dropping it via the Atlas dashboard directly.
+- Final commit deployed: `e93c7cc` (merge of the Nuxt 4 rewrite + the package-lock.json fix) on
+  both `rogeryeosgit/DevoProject` and `NavigatorsTech/DevoProject`'s `master`.
+
 ---
 
 ## Critical files

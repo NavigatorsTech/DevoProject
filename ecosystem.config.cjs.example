@@ -25,12 +25,21 @@ module.exports = {
       name: 'qtapp',
       cwd: '/QTNuxtProject',
       script: '.output/server/index.mjs',
-      // Point at a Node 20+ binary explicitly (e.g. via nvm) if the system
-      // Node is still on the older version the previous Express app used -
-      // see the test deployment's ecosystem.config.cjs for the exact pattern.
-      interpreter: 'node',
-      instances: 'max',
-      exec_mode: 'cluster',
+      // Must be an ABSOLUTE path to a Node 20+ binary (e.g. via nvm), not the
+      // bare string 'node' - the PM2 daemon resolves that against its own
+      // long-running environment (still the old system Node, if the daemon
+      // itself was started under it), not whatever's on PATH when you run
+      // `pm2 start`. Confirmed the hard way during the real cutover: a bare
+      // 'node' interpreter silently ran the app under system Node 14 and
+      // crashed on startup with a syntax error. Get the real path via
+      // `ls ~/.nvm/versions/node/` on the target server and substitute it in.
+      interpreter: '/home/roger/.nvm/versions/node/v20.20.2/bin/node',
+      // 'cluster'/'max' also did not honor the interpreter override correctly
+      // on the production server (same root cause) - 'fork'/1 is the
+      // confirmed-working combination. Revisit cluster mode only after
+      // confirming it respects an absolute interpreter path on the target box.
+      instances: 1,
+      exec_mode: 'fork',
       env: {
         PORT: '3000',
         HOST: '127.0.0.1',
