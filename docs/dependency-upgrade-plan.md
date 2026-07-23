@@ -52,12 +52,16 @@ manual QA against the upgraded build.
       `teeny-request` chain still pins a vulnerable `uuid` regardless of firebase-admin version.
       The override is the real fix.
   - Re-run `npm audit` and confirm 0 vulnerabilities remain.
-  - Move Node target from 20 (EOL 2026-04-30) to **24 "Krypton"** (current Active LTS until
-    2026-10-28, when Node 26 leaves Current and becomes LTS — do not adopt 26 before then):
-    - `.github/workflows/deploy.yml`: `actions/setup-node@v4` `node-version: '20'` → `'24'`
-    - Same file's SSH deploy script: `nvm use 20` → `nvm use 24`
-    - `ecosystem.config.cjs.example`: update the "Node 20+" comments to reflect Node 24
-    - Add an `"engines": { "node": ">=24" }` field to `package.json`
+  - ~~Move Node target from 20 (EOL 2026-04-30) to **24 "Krypton"** (current Active LTS until
+    2026-10-28, when Node 26 leaves Current and becomes LTS — do not adopt 26 before then)~~
+    **Done, landed independently of the CVE-override sub-item above (that one's still open):**
+    - `.github/workflows/deploy.yml`: `actions/setup-node@v4` `node-version: '20'` → `'24'` ✓
+    - Same file's SSH deploy script: `nvm use 20` → `nvm use 24` ✓
+    - `ecosystem.config.cjs.example`: interpreter path + comments updated to Node 24 ✓
+    - Added `"engines": { "node": ">=24" }` to `package.json` ✓
+    - Production server: Node 24.18.0 installed via nvm, live `qtapp` process moved over
+      (`pm2 describe` confirms `node.js version: 24.18.0`, `fork_mode`, 0 restarts) ✓
+  - Remaining for this phase: the `overrides` block (esbuild/uuid) and `npm audit` verification.
   - Verify: `npm audit` clean, `npm run build` succeeds under Node 24 locally, deploy workflow
     references updated.
 

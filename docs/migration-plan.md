@@ -796,8 +796,8 @@ the plan above in some real, worth-recording ways:
   syntax). This only happened in `cluster`/`instances: 'max'` mode; `exec_mode: 'fork'` with
   `instances: 1` **and an absolute interpreter path**
   (`/home/roger/.nvm/versions/node/v20.20.2/bin/node`) works correctly and is what's actually
-  deployed. **`ecosystem.config.cjs.example` in this repo still shows `cluster`/`'node'`/`'max'`
-  and should be updated to match** — tracked as a follow-up, not yet fixed.
+  deployed. `ecosystem.config.cjs.example` in this repo was updated to match (absolute path,
+  `fork`/`instances: 1`, with a comment explaining why).
 - **`package-lock.json` had drifted out of sync with `package.json`** (pre-existing, unrelated to
   this migration — likely from an `npm install` run at some point without the lock file being
   committed). This silently broke `npm ci` both locally and in the first real CI run against
@@ -816,6 +816,27 @@ the plan above in some real, worth-recording ways:
   user optionally dropping it via the Atlas dashboard directly.
 - Final commit deployed: `e93c7cc` (merge of the Nuxt 4 rewrite + the package-lock.json fix) on
   both `rogeryeosgit/DevoProject` and `NavigatorsTech/DevoProject`'s `master`.
+
+### Node 20 → 24 upgrade (2026-07-24)
+
+Node 20 went EOL 2026-04-30, so production moved to Node 24 "Krypton" (current Active LTS) shortly
+after cutover — pulled forward out of `docs/dependency-upgrade-plan.md` Phase 0 as its own small,
+low-risk change, independent of that plan's dependency-version and CVE-override work (still open).
+
+The user also asked about restoring PM2 `cluster` mode (it was moved to `fork` during the cutover
+to work around the interpreter bug above). Checked the production box's specs first:
+**1 vCPU, 1.8 GB RAM** — cluster mode would spawn exactly one worker there, same as fork, with no
+throughput benefit and the added overhead of a cluster master process. Decision: **stay on fork
+mode**; revisit cluster only if the server is ever resized to 2+ vCPUs. See the
+`qt-pm2-interpreter-gotcha` memory for the technical reason cluster mode couldn't use the
+interpreter override in the first place (the PM2 daemon itself, not just the app process, would
+need to be running under the new Node for cluster's forked workers to inherit it).
+
+Node 24.18.0 installed via `nvm` on the server (20.20.2 kept installed as a fast-revert fallback).
+`ecosystem.config.cjs`'s interpreter path updated in place, app rebuilt and restarted under Node 24
+— verified via `pm2 describe` (`node.js version: 24.18.0`, `fork_mode`, 0 restarts) and a live
+Mongo-backed API call returning clean after a log flush. `deploy.yml` and
+`ecosystem.config.cjs.example` updated to match so future automated deploys stay on Node 24.
 
 ---
 
