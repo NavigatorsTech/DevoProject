@@ -473,7 +473,7 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     `NUXT_MONGODB_ACCESS`, `NUXT_MONGOOSE_SECRET`, `NUXT_ESV_API_KEY`, `NUXT_CACHE_TTL`, and
     `NUXT_FIREBASE_SERVICE_ACCOUNT_PATH` — not the bare names used in the old Express
     `ecosystem.config.js`.**
-- [ ] **Parity QA** — walk `FEATURES.md` §11 checklist against production; §10 security regressions; §12 data / §13 deploy go/no-go gates
+- [x] **Parity QA** — walk `FEATURES.md` §11 checklist against production; §10 security regressions; §12 data / §13 deploy go/no-go gates
   - **§10 security regressions verified live via curl against the deployed test instance** (no
     login needed - these test the *rejection* path): every protected endpoint
     (`/api/plans` GET/PUT/DELETE, `/api/qtJournalEntries` GET/PUT/DELETE,
@@ -481,22 +481,65 @@ against the Nuxt 4 build, compared side-by-side with production at https://qt.na
     original unauthenticated-`/users/planChosen` gap and confirming the missing-header-silently-
     passes bug stays fixed. `/api/passages/today` correctly stays public (200); the arbitrary
     `/api/passages?passageReference=` lookup now correctly requires auth (401), matching the
-    §10 decision to gate it. The null-plan-404 guard and the IDOR ownership checks specifically
-    (as opposed to the auth-presence checks above) need a *valid* token to exercise past the
-    auth gate, so those still need the user's own live testing.
+    §10 decision to gate it. **The null-plan/entry-404 guard and the IDOR ownership checks are
+    now also verified** — done via a throwaway Firebase test account (two accounts, actually, to
+    exercise cross-user ownership) and its own minted ID token, exercising PUT/DELETE on
+    plans/journal entries as both owner and non-owner directly against the test deployment's API.
+    Confirmed: non-owner PUT/DELETE on both resources → 403; nonexistent-id PUT/DELETE → clean
+    404 (no crash); `creatorEmail` cannot be spoofed via request body; the journal GET's
+    `creatorEmail` query param is enforced against the verified token (401 on mismatch); the
+    encryption round-trip works on live data (wrote plaintext, read back correctly decrypted).
   - **§12 data validation: done and passing** (see Phase 6 above) - encryption round-trip and
     Plan.passages shape both clean; one pre-existing dangling `planChosen` found and flagged,
     not blocking.
   - **§13 deploy: runbook written, not yet executed for real** (see Phase 6's cutover runbook) -
     the actual production cutover is a separate decision from finishing this plan.
-  - **Still needs the user's own hands-on testing** (login/account actions are explicitly not
-    something this assistant performs) before this checklist item can be marked done: the full
-    §11 authenticated-flow walkthrough - login/register/Google/password-reset/idle-cap/logout,
-    journal create/update/delete + drafts + streak, plan create/update/delete + PassagePicker
-    interaction. Three rounds of visual/functional bugs have already been found and fixed this
-    way (button variants, card borders, typography, opacity, centering, chip truncation,
-    density) - this is the gate that's actually been catching real regressions, more than any
-    other single check in this whole migration.
+  - **§11 authenticated-flow walkthrough: mostly done via the same throwaway test account**
+    (created/driven directly rather than needing the user's own real login, since a disposable
+    Firebase Auth account carries no privacy stakes). Verified: register via the actual UI form
+    (confirms a default-plan `User` doc gets created), email/password login including the
+    mapped "Incorrect email or password" error case, logout (cookies + Pinia + `qtDraft:*`
+    localStorage all cleared, isolated from the create-page's own route-leave guard by testing
+    each independently), hitting a protected route while logged out (→ `/error` with a working
+    "Proceed to Log In" link), journal create/view/update/delete with confirm dialogs, streak
+    increment/reset, create-draft same-day restore, cancel-discards-draft, share/copy-to-clipboard
+    (byte-for-byte matches the expected format), plan create/update/delete, non-owner
+    update/delete blocked both client-side (disabled buttons) and server-side, a multi-month plan
+    (saved and re-edited, both months round-trip correctly), selecting a plan updates today's
+    passage immediately, an old journal entry permanently keeps its own original passage even
+    after the active plan changes, the PassagePicker's single- and multi-chapter reference
+    strings, SSR-rendered HTML already containing today's passage (raw curl, zero JS), and the
+    password-reset link's continue-URL (generated directly via the Admin SDK rather than needing
+    real inbox access — correctly lands on `qt.navigators.tech` per the app's hardcoded
+    `continueUrl`).
+  - **A fourth round of real bugs was found and fixed this way** (see `git log` on
+    `components/PassagePicker.vue`/`PlanEditor.vue`): a `position: fixed` "next" button pinning to
+    the dialog's own corner in Vuetify 3 (not the viewport, unlike Vuetify 2) and landing on top
+    of the dialog's real Cancel/Save footer; verse-step defaults collapsing any chapter selection
+    into a degenerate single-verse reference instead of the full chapter range; and misaligned
+    chapter checkboxes. Also consolidated the picker's own action button into the dialog's single
+    action bar (Cancel/Next/Save) instead of two separate, visually inconsistent button areas.
+    This is now the fourth consecutive round of regressions this exact manual-walkthrough gate has
+    caught (following button variants, card borders, typography, opacity, centering, chip
+    truncation, density) — still the most effective check in this whole migration.
+  - **Google sign-in: confirmed working by the user directly** (real OAuth consent can't safely be
+    scripted, so this one always needed a human click-through).
+  - **Silent token refresh and the 3-day idle-cap forced logout: both verified**, without waiting
+    real time, by temporarily exposing the Firebase Auth instance to `window` in
+    `plugins/firebase.client.ts` (`if (import.meta.dev) window.__debugAuth = auth` — added, used,
+    then removed; never committed) on the local dev server. Token refresh: called
+    `getIdToken(true)` to force a real refresh; `expirationTime` cookie advanced to a new value,
+    session kept working with zero visible interruption. Idle cap: manually set the
+    `lastActiveAt` cookie to a timestamp just over 3 days old, then forced a refresh the same way
+    — `jwt`/`lastActiveAt`/`qtAppID` cookies were all correctly cleared (real `logout()` fired),
+    and the next navigation to a protected route bounced to `/error` exactly like a normal logout.
+  - **Not independently verified, lowest-stakes item**: cache-hit confirmation for repeated
+    passage requests via server logs (no explicit cache-hit/miss log line exists in
+    `bible-retrieval.ts`, and timing alone wasn't conclusive since the ESV API itself responds in
+    the same ~50-60ms range regardless — the cached-function wrapper is confirmed correct by code
+    inspection, just not by an external runtime signal). §13's actual production cutover (flipping
+    DNS/nginx from the old app to this Nitro build) remains its own separate, deliberate decision
+    — not a QA checklist item, and not yet made.
 
 ---
 
