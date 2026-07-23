@@ -9,10 +9,10 @@
       :draftSameDayOnly="true"
       @draft-restored="onDraftRestored"
     />
-    <div class="d-flex flex-wrap">
-      <v-btn class="ma-1" color="warning" variant="elevated" @click="cancel">Cancel</v-btn>
-      <v-btn class="ma-1" color="primary" variant="elevated" @click="copyContents">Share</v-btn>
-      <v-btn class="ma-1" color="success" variant="elevated" @click="submit">Save</v-btn>
+    <div class="d-flex flex-wrap ga-2 mt-4">
+      <v-btn color="warning" variant="elevated" @click="cancel">Cancel</v-btn>
+      <v-btn color="primary" variant="elevated" @click="copyContents">Share</v-btn>
+      <v-btn color="success" variant="elevated" @click="submit">Save</v-btn>
     </div>
 
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">

@@ -11,12 +11,12 @@
       :draftKey="'qtDraft:edit:' + id"
       @draft-restored="onDraftRestored"
     />
-    <div class="d-flex flex-wrap">
-      <v-btn class="ma-1" color="warning" variant="elevated" @click="cancel">Cancel</v-btn>
-      <v-btn class="ma-1" color="primary" variant="elevated" @click="copyContents">Share</v-btn>
+    <div class="d-flex flex-wrap ga-2 mt-4">
+      <v-btn color="warning" variant="elevated" @click="cancel">Cancel</v-btn>
+      <v-btn color="primary" variant="elevated" @click="copyContents">Share</v-btn>
       <v-dialog v-model="updateDialog" persistent max-width="290">
         <template v-slot:activator="{ props: activatorProps }">
-          <v-btn class="ma-1" color="success" variant="elevated" v-bind="activatorProps">Update</v-btn>
+          <v-btn color="success" variant="elevated" v-bind="activatorProps">Update</v-btn>
         </template>
         <v-card>
           <v-card-title class="text-h5">Just to be sure...</v-card-title>
@@ -31,7 +31,7 @@
 
       <v-dialog v-model="deleteDialog" persistent max-width="290">
         <template v-slot:activator="{ props: activatorProps }">
-          <v-btn class="ma-1" color="error" variant="elevated" v-bind="activatorProps">Delete</v-btn>
+          <v-btn color="error" variant="elevated" v-bind="activatorProps">Delete</v-btn>
         </template>
         <v-card>
           <v-card-title class="text-h5">Just to be sure...</v-card-title>

@@ -1,15 +1,12 @@
 <template>
-  <div>
-    <v-card>
-      <v-card-title>{{ entryTitle }}</v-card-title>
-      <v-card-subtitle>{{ dateFormatter(entryDate) }} - {{ entryPassageReference }}</v-card-subtitle>
-      <v-card-text>{{ entryShortThoughts }}</v-card-text>
-      <v-card-actions>
-        <v-btn color="blue" variant="text" @click="$emit('view-entry', entryID)">View Full Entry</v-btn>
-      </v-card-actions>
-    </v-card>
-    <br />
-  </div>
+  <v-card class="mx-auto mb-4">
+    <v-card-title>{{ entryTitle }}</v-card-title>
+    <v-card-subtitle>{{ dateFormatter(entryDate) }} - {{ entryPassageReference }}</v-card-subtitle>
+    <v-card-text>{{ entryShortThoughts }}</v-card-text>
+    <v-card-actions>
+      <v-btn color="blue" variant="text" @click="$emit('view-entry', entryID)">View Full Entry</v-btn>
+    </v-card-actions>
+  </v-card>
 </template>
 
 <script setup lang="ts">

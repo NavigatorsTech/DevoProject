@@ -21,7 +21,7 @@
         </v-col>
       </v-row>
     </v-container>
-    <div class="d-flex justify-center ga-2">
+    <div class="d-flex justify-center ga-2 mt-2">
       <v-btn color="primary" variant="elevated" @click="proceedToLogin">Proceed to log in</v-btn>
       <v-btn color="primary" variant="outlined" @click="goHome">Go to homepage</v-btn>
     </div>

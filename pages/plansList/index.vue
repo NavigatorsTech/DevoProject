@@ -3,7 +3,6 @@
     <PlanCard
       v-for="i in plans"
       :key="i._id"
-      class="mx-auto"
       :planID="i._id"
       :planName="i.planName"
       :planDescription="i.description"
@@ -14,7 +13,7 @@
       @update-plan="updateSelectedPlan"
       @selected="changeSelected"
     />
-    <div class="d-flex justify-center">
+    <div class="d-flex justify-center mt-4">
       <v-btn to="/plansList/createPlan" exact color="primary" variant="elevated">Create Plan</v-btn>
     </div>
   </div>

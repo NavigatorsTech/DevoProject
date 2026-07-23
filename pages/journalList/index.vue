@@ -1,16 +1,13 @@
 <template>
   <div>
-    <h1>Your Journal Entries</h1>
-    <StreakCard class="mx-auto" />
-    <br />
-    <div class="d-flex justify-center">
+    <h1 class="mb-4">Your Journal Entries</h1>
+    <StreakCard class="mx-auto mb-4" />
+    <div class="d-flex justify-center mb-4">
       <v-btn to="/journalList/createEntry" exact color="primary" variant="elevated">Write QT Thoughts</v-btn>
     </div>
-    <br />
     <JournalCard
       v-for="i in entriesInReverse"
       :key="i._id"
-      class="mx-auto"
       :entryID="i._id"
       :entryTitle="i.title"
       :entryDate="i.date"

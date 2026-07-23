@@ -1,16 +1,14 @@
 <template>
-  <div class="d-flex flex-column justify-center align-center">
-    <v-card>
-      <v-card-title>{{ reference }}</v-card-title>
-      <v-card-subtitle>{{ dateFormatter(passageDate) }}</v-card-subtitle>
-      <v-card-text
-        id="verse-number-sup"
-        class="text-high-emphasis"
-        style="white-space: pre-wrap"
-        v-html="passage"
-      />
-    </v-card>
-  </div>
+  <v-card class="mx-auto w-100">
+    <v-card-title>{{ reference }}</v-card-title>
+    <v-card-subtitle>{{ dateFormatter(passageDate) }}</v-card-subtitle>
+    <v-card-text
+      id="verse-number-sup"
+      class="text-high-emphasis"
+      style="white-space: pre-wrap"
+      v-html="passage"
+    />
+  </v-card>
 </template>
 
 <script setup lang="ts">

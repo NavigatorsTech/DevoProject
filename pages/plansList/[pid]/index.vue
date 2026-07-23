@@ -6,23 +6,24 @@
       :propDescription="retrievedPlan?.description"
       :propTempStore="retrievedPlan?.passages"
     />
-    <br />
-    <v-btn class="mr-1" color="warning" variant="elevated" @click="cancelPlan">Cancel</v-btn>
+    <div class="d-flex flex-wrap ga-2 mt-4">
+      <v-btn color="warning" variant="elevated" @click="cancelPlan">Cancel</v-btn>
 
-    <v-dialog v-model="updateDialog" persistent max-width="290">
-      <template v-slot:activator="{ props: activatorProps }">
-        <v-btn color="success" variant="elevated" v-bind="activatorProps">Update Plan</v-btn>
-      </template>
-      <v-card>
-        <v-card-title class="text-h5">Just to be sure...</v-card-title>
-        <v-card-text>Are you sure you would like to update this plan?</v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn color="warning" variant="text" @click="updateDialog = false">Cancel</v-btn>
-          <v-btn color="success" variant="text" @click="updatePlan(); updateDialog = false">Yes</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <v-dialog v-model="updateDialog" persistent max-width="290">
+        <template v-slot:activator="{ props: activatorProps }">
+          <v-btn color="success" variant="elevated" v-bind="activatorProps">Update Plan</v-btn>
+        </template>
+        <v-card>
+          <v-card-title class="text-h5">Just to be sure...</v-card-title>
+          <v-card-text>Are you sure you would like to update this plan?</v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn color="warning" variant="text" @click="updateDialog = false">Cancel</v-btn>
+            <v-btn color="success" variant="text" @click="updatePlan(); updateDialog = false">Yes</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+    </div>
   </div>
 </template>
 

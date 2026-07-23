@@ -1,9 +1,10 @@
 <template>
   <div>
     <PlanEditor ref="PlanEditorComponent" />
-    <br />
-    <v-btn class="mr-1" color="warning" variant="elevated" @click="cancelPlan">Cancel</v-btn>
-    <v-btn color="success" variant="elevated" @click="submitPlan">Create Plan</v-btn>
+    <div class="d-flex flex-wrap ga-2 mt-4">
+      <v-btn color="warning" variant="elevated" @click="cancelPlan">Cancel</v-btn>
+      <v-btn color="success" variant="elevated" @click="submitPlan">Create Plan</v-btn>
+    </div>
   </div>
 </template>
 

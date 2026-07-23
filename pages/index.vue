@@ -40,7 +40,7 @@
         </v-col>
       </v-row>
     </v-container>
-    <div class="d-flex justify-center">
+    <div class="d-flex justify-center mt-4 mb-4">
       <v-btn v-if="isAuthenticated" to="/journalList/createEntry" exact color="primary" variant="elevated">Write down your thoughts</v-btn>
       <v-btn v-if="!isAuthenticated" to="/auth" exact color="primary" variant="elevated">Log in to journal your thoughts!</v-btn>
     </div>
