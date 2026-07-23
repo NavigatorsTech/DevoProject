@@ -1,7 +1,7 @@
 <template>
   <div>
     <v-form ref="lazyForm">
-      <v-card width="400" class="mx-auto mt-5">
+      <v-card max-width="400" class="mx-auto mt-5">
         <v-card-title>
           <h1 class="text-h4">Login</h1>
         </v-card-title>

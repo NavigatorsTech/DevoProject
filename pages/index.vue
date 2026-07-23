@@ -4,7 +4,7 @@
       <v-row justify="center">
         <v-col cols="12" md="10">
           <v-card border>
-            <v-list-item>
+            <v-list-item class="pa-4">
               <v-list-item-title class="text-h5 mb-1 text-wrap">
                 Your Personal QT and Journaling App
               </v-list-item-title>
