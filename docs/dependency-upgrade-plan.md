@@ -39,7 +39,7 @@ manual QA against the upgraded build.
 
 ## Progress checklist
 
-- [ ] **Phase 0** — Immediate CVE fixes + Node baseline (no breaking changes)
+- [x] **Phase 0** — Immediate CVE fixes + Node baseline (no breaking changes) — **done 2026-07-24**
   - Add an `overrides` block to `package.json`:
     - `esbuild: ^0.28.1` — fixes GHSA-67mh-4wv8-2f99 (dev-server-only CORS issue, pulled in via
       `vuetify-nuxt-module` → `unconfig` → `importx`'s nested esbuild copy). Every other consumer
@@ -61,36 +61,39 @@ manual QA against the upgraded build.
     - Added `"engines": { "node": ">=24" }` to `package.json` ✓
     - Production server: Node 24.18.0 installed via nvm, live `qtapp` process moved over
       (`pm2 describe` confirms `node.js version: 24.18.0`, `fork_mode`, 0 restarts) ✓
-  - Remaining for this phase: the `overrides` block (esbuild/uuid) and `npm audit` verification.
-  - Verify: `npm audit` clean, `npm run build` succeeds under Node 24 locally, deploy workflow
-    references updated.
+  - **Done:** `overrides` block landed (`esbuild: ^0.28.1`, `uuid: ^11.1.1`). `npm audit` confirmed
+    **0 vulnerabilities** (was 12 moderate). `npm run build` verified clean under Node 24.
 
-- [ ] **Phase 1** — Low-risk dependency bumps (batch together)
-  - `nuxt` 4.4.8 → 4.5.0 (minor)
-  - `pinia` 3.0.4 → 4.0.2 **and** `@pinia/nuxt` 0.11.3 → 1.0.1 together (1.0.1 peer-locks to
-    `pinia ^4.0.2`, won't install against Pinia 3). Pinia 4 is ESM-only — add `@vue/devtools-api`
-    as an explicit dependency (no longer bundled transitively).
-  - `vue-router` 4.6.4 → 5.2.0 — not really optional: Nuxt 4.4.8 already depends on
-    `vue-router ^5.1.0` internally, so the current pin is already a mismatched duplicate install.
-    No app-level breaking changes for apps not using `unplugin-vue-router`. Confirm Nuxt's bundled
-    Vite satisfies vue-router 5.2.0's `vite ^7.3.0 || ^8.0.0` peer range.
-  - `typescript` → latest 6.x — **not** 7.x. TypeScript 7 (the native Go-ported compiler) went GA
-    2026-07-08, but Microsoft's own announcement flags that embedded-tooling support (Vue/Volar,
-    which `vue-tsc` wraps) isn't ready until ~TS 7.1 (~Oct 2026). Revisit then.
-  - `vuetify-nuxt-module` 0.18.9 → **0.19.5** (stable — adds a Vuetify-4-compatible peer range).
-    Do **not** adopt `1.0.0-rc.3`, which is npm's `latest` dist-tag but still an RC with no stable
-    1.0 release yet.
-  - `nuxt-gtag` 3.0.3 → 4.1.0 — quick changelog check, low-stakes analytics wrapper.
-  - Verify: `npm run dev`, exercise auth/passages/journal/plans flows per `FEATURES.md` §11.
+- [x] **Phase 1** — Low-risk dependency bumps (batch together) — **done 2026-07-24**
+  - `nuxt` 4.4.8 → 4.5.0 (minor) ✓
+  - `pinia` 3.0.4 → 4.0.2 **and** `@pinia/nuxt` 0.11.3 → 1.0.1 together ✓, `@vue/devtools-api`
+    added as an explicit dependency (`^8.1.5`) ✓
+  - `vue-router` 4.6.4 → 5.2.0 ✓ — peers confirmed satisfied (vite 8.1.5, vue 3.5.40, pinia 4)
+  - `vuetify-nuxt-module` 0.18.9 → 0.19.5 ✓ (not the `1.0.0-rc.3` `latest` tag). Introduces a
+    harmless `useLayout` auto-import collision warning at dev/build time (Nuxt's built-in wins;
+    app code doesn't call `useLayout` anywhere) — cosmetic, not a bug.
+  - `nuxt-gtag` 3.0.3 → 4.1.0 ✓
+  - `vue-tsc` 2.2.12 → 3.3.8 ✓ (also fixes the `vue-router/volar/sfc-route-blocks` plugin-load
+    warning `npm run typecheck` was emitting)
+  - **`typescript` correction:** the "latest 6.x" instruction above was wrong — **there is no
+    stable TypeScript 6.x**. Registry dist-tags show `6.0.0-beta` (beta only) and `latest: 7.0.2`.
+    Left on `^5.7.0` (installed 5.9.3) pending TS 7.1 Vue/Volar support (~Oct 2026).
+  - **Pulled forward from Phase 2** (re-assessed as low-risk after confirming the app is Auth-only,
+    no Firestore/Storage/Messaging/Instance ID usage): `firebase` (client) 11.10.0 → 12.16.0 ✓,
+    `firebase-admin` 13.10.0 → 14.2.0 ✓.
+  - Verify: `npm run build` ✓, `npm run typecheck` (0 errors) ✓, `npm run dev` boot + manual smoke
+    test (`/` and `/auth` render 200 SSR) ✓. Full FEATURES.md §11 flow QA still recommended before
+    this reaches production, but blocked locally on this dev machine's Mongo Atlas/ESV API
+    credentials (unrelated to this upgrade — flagged separately).
 
 - [ ] **Phase 2** — Medium-risk bumps
-  - `firebase` (client SDK) 11.10.0 → 12.16.0 — app only uses Auth, not Firestore, so the
-    `DocumentSnapshot.exists` property→method change is irrelevant; just confirm Nuxt/Vite
-    resolves the now-ESM `browser` field correctly.
-  - `mongoose` 8.24.1 → 9.8.0 — requires Node ≥20.19 (satisfied by Phase 0). Before upgrading,
-    grep `server/` for any `pre()` hooks still using the callback-style `next()` param (removed in
-    9.x — needs async/throw/Promise style instead). No documented change to nested `Map`-of-`Map`
-    schemas (used by `Plan.passages`), but give that a manual regression test regardless.
+  - `mongoose` 8.24.1 → 9.8.0 — requires Node ≥20.19 (satisfied by Phase 0). Codebase inventory
+    (2026-07-24) confirms **no hand-written `.pre()`/`.post()` hooks anywhere** — the only Mongoose
+    middleware is internal to `mongoose-field-encryption` (see Phase 3), so the v9 callback-`next()`
+    removal doesn't touch app code directly. No removed v9 APIs in use either (no callback queries,
+    `update()`, `remove()`, `count()`). The real risk is entirely the encryption plugin's Mongoose-9
+    compatibility — see Phase 3. `Plan.passages` nested `Map`-of-`Map` schema (`server/models/Plan.ts`)
+    still needs a manual regression test regardless.
   - Verify: full plans + journal CRUD flows, especially multi-month plan create/edit round-trips.
 
 - [ ] **Phase 3** — High-risk bumps (isolate on their own commit(s), extra QA)
