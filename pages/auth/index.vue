@@ -1,133 +1,124 @@
 <template>
-  <v-form ref="lazyForm" lazy-validation>
-    <v-card width="400" class="mx-auto mt-5">
-      <v-card-title>
-        <h1 class="display-1">Login</h1>
-      </v-card-title>
-      <v-card-text>
-        <v-text-field
-          v-model="email"
-          :rules="emailRules"
-          label="Email"
-          prepend-icon="mdi-account-circle"
-          required
-        />
-        <v-text-field
-          :type="showPassword ? 'text' : 'password'"
-          label="Password"
-          prepend-icon="mdi-lock"
-          :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-          @click:append="showPassword = !showPassword"
-          v-model="password"
-          v-on:keyup.enter="login"
-        />
-      </v-card-text>
-      <v-divider></v-divider>
-      <v-card-actions>
-        <v-btn @click="register" color="success">Register</v-btn>
-        <v-spacer></v-spacer>
-        <v-btn @click="login" color="info">Login</v-btn>
-      </v-card-actions>
-      <v-divider></v-divider>
-      <v-card-actions>
-        <v-btn @click="loginWithGoogle" block outlined>
-          <v-icon left>mdi-google</v-icon>
-          Sign in with Google
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-    <center>
-      <a><v-card-text @click="validate()">Forgot Password?</v-card-text></a>
-    </center>
+  <div>
+    <v-form ref="lazyForm">
+      <v-card max-width="400" class="mx-auto mt-5">
+        <v-card-title>
+          <h1 class="text-h4">Login</h1>
+        </v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="email"
+            :rules="emailRules"
+            label="Email"
+            prepend-icon="mdi-account-circle"
+            required
+          />
+          <v-text-field
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            label="Password"
+            prepend-icon="mdi-lock"
+            :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+            @click:append="showPassword = !showPassword"
+            @keyup.enter="login"
+          />
+        </v-card-text>
+        <v-divider />
+        <v-card-actions>
+          <v-btn color="success" variant="elevated" @click="register">Register</v-btn>
+          <v-spacer />
+          <v-btn color="info" variant="elevated" @click="login">Login</v-btn>
+        </v-card-actions>
+        <v-divider />
+        <v-card-actions>
+          <v-btn block variant="outlined" @click="loginWithGoogle">
+            <v-icon class="mr-2">mdi-google</v-icon>
+            Sign in with Google
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-form>
+    <div class="d-flex justify-center mt-4">
+      <span class="text-primary" style="cursor: pointer" @click="validate()">Forgot Password?</span>
+    </div>
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">
       {{ snackText }}
-      <v-btn text @click="snack = false">Close</v-btn>
+      <v-btn variant="text" @click="snack = false">Close</v-btn>
     </v-snackbar>
-  </v-form>
+  </div>
 </template>
 
-<script>
-export default {
-  data() {
-    return {
-      showPassword: false,
-      email: "",
-      emailRules: [
-        v => !!v || "Please enter an email address", // !! converts to boolean
-        v => /.+@.+\..+/.test(v) || "E-mail must be valid"
-      ],
-      password: "",
-      snack: false,
-      snackColor: "",
-      snackText: ""
-    };
-  },
-  methods: {
-    login() {
-      // TODO: validate log in data https://www.youtube.com/watch?v=_-_bz5lH_fI
-      this.$store.dispatch("userStore/authenticateUser", {
-        isLogin: true,
-        id: this.email,
-        pwd: this.password
-      });
-    },
-    register() {
-      this.$store.dispatch("userStore/authenticateUser", {
-        isLogin: false,
-        id: this.email,
-        pwd: this.password
-      });
-    },
-    loginWithGoogle() {
-      this.$store.dispatch("userStore/authenticateWithGoogle");
-    },
-    async passwordReset() {
-      try {
-        await this.$fire.auth.sendPasswordResetEmail(this.email, {
-          url: 'https://qt.navigators.tech'
-        }).then(() => {
-          this.snack = true;
-          this.snackColor = "success";
-          this.snackText = "Password Reset Email Sent!";
-        });
-      } catch (e) {
-        // When firebase returns an error looking up email in the database
-        console.log(e);
-        this.snack = true;
-        this.snackColor = "error";
-        this.snackText = "Error, Email Not Found!";
-      }
-    },
-    validate() {
-      if (this.$refs.lazyForm.validate()) {
-        this.passwordReset();
-      }
-    }
-  },
-  watch: {
-    isAuthenticated: function() {
-      if (this.isAuthenticated) {
-        // Removed because of excessive calls on the backend, believe to have been superceded by updates. To be deleted KIV
-        // this.$store.dispatch("planStore/getPlanChosen");
-        this.$router.push("/");
-      }
-    },
-    errorOccured: function() {
-      if (this.errorOccured) {
-        this.snack = true;
-        this.snackColor = "error";
-        this.snackText = this.$store.getters["userStore/getErrorMessage"];
-        this.$store.dispatch("userStore/clearError");
-      }
-    }
-  },
-  computed: {
-    isAuthenticated: function() {
-      return this.$store.getters["userStore/isAuthenticated"];
-    },
-    errorOccured: function() {
-      return this.$store.getters["userStore/errorOccured"];
+<script setup lang="ts">
+import { sendPasswordResetEmail, type Auth } from 'firebase/auth'
+
+const userStore = useUserStore()
+
+const lazyForm = ref()
+const showPassword = ref(false)
+const email = ref('')
+const password = ref('')
+const snack = ref(false)
+const snackColor = ref('')
+const snackText = ref('')
+
+const emailRules = [
+  (v: string) => !!v || 'Please enter an email address', // !! converts to boolean
+  (v: string) => /.+@.+\..+/.test(v) || 'E-mail must be valid'
+]
+
+function login() {
+  userStore.authenticateUser({ isLogin: true, id: email.value, pwd: password.value })
+}
+
+function register() {
+  userStore.authenticateUser({ isLogin: false, id: email.value, pwd: password.value })
+}
+
+function loginWithGoogle() {
+  userStore.authenticateWithGoogle()
+}
+
+async function passwordReset() {
+  try {
+    const auth = useNuxtApp().$firebaseAuth as Auth
+    await sendPasswordResetEmail(auth, email.value, { url: 'https://qt.navigators.tech' })
+    snack.value = true
+    snackColor.value = 'success'
+    snackText.value = 'Password Reset Email Sent!'
+  } catch (e) {
+    // When firebase returns an error looking up email in the database
+    console.error(e)
+    snack.value = true
+    snackColor.value = 'error'
+    snackText.value = 'Error, Email Not Found!'
+  }
+}
+
+async function validate() {
+  const { valid } = await lazyForm.value.validate()
+  if (valid) {
+    passwordReset()
+  }
+}
+
+watch(
+  () => userStore.isAuthenticated,
+  (isAuthenticated) => {
+    if (isAuthenticated) {
+      navigateTo('/')
     }
   }
-};
+)
+
+watch(
+  () => userStore.errorOccured,
+  (errorOccured) => {
+    if (errorOccured) {
+      snack.value = true
+      snackColor.value = 'error'
+      snackText.value = userStore.getErrorMessage
+      userStore.clearError()
+    }
+  }
+)
 </script>

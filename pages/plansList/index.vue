@@ -1,71 +1,61 @@
 <template>
   <div>
-    <PlanCard class="mx-auto" v-for="i in plans" :key="i._id" :planID="i._id" :planName="i.planName" :planDescription="i.description" :passages="i.passages" :notOwner="!isOwner(i.creatorEmail)" @delete-plan="submitPlanDeletion" @update-plan="updateSelectedPlan" :isSelected="checkSelected(i._id)" @selected="changeSelected" :ref="i._id" :selectedLater="false"></PlanCard>
-    <center>
-      <v-btn to="/plansList/createPlan" nuxt exact color="primary">Create Plan</v-btn>
-    </center>
+    <PlanCard
+      v-for="i in plans"
+      :key="i._id"
+      :planID="i._id"
+      :planName="i.planName"
+      :planDescription="i.description"
+      :passages="i.passages"
+      :notOwner="!isOwner(i.creatorEmail)"
+      :isSelected="checkSelected(i._id)"
+      @delete-plan="submitPlanDeletion"
+      @update-plan="updateSelectedPlan"
+      @selected="changeSelected"
+    />
+    <div class="d-flex justify-center mt-4">
+      <v-btn to="/plansList/createPlan" exact color="primary" variant="elevated">Create Plan</v-btn>
+    </div>
   </div>
 </template>
 
-<script>
-import PlanCard from "@/components/PlanCard";
+<script setup lang="ts">
+definePageMeta({ middleware: ['check-auth', 'login-check'] })
 
-export default {
-  asyncData(context) {
-    context.store.dispatch("planStore/getPlanChosen");
-    return context.app.$axios.$get("/plans").then((data) => {
-        context.store.dispatch("planStore/storePlans", data);
-    }).catch((e) => context.error(e));
-  },
-  components: {
-    PlanCard,
-  },
-  middleware: ["checkAuth", "loginCheck"],
-  computed: {
-    plans: function () {
-      return this.$store.getters["planStore/getPlans"];
-    },
-  },
-  methods: {
-    submitPlanDeletion(id) {
-      this.$store.dispatch("planStore/deletePlan", id);
-    },
-    updateSelectedPlan(id) {
-      this.$router.push("/plansList/" + id);
-    },
-    isOwner(ownerEmail) {
-      var currentUserID = this.$store.getters["userStore/getUserID"];
-      if (ownerEmail === currentUserID) {
-        return true;
-      } else {
-        return false;
-      }
-    },
-    checkSelected(id) {
-      var selectedPlanID = this.$store.getters["planStore/getChosenPlan"];
-      if (selectedPlanID === id) {
-        return true;
-      } else {
-        return false;
-      }
-    },
-    changeSelected(id) {
-      this.$store.dispatch("planStore/setChosenPlan", id);
-    },
-  }
-};
+const userStore = useUserStore()
+const planStore = usePlanStore()
+const router = useRouter()
+
+const { error: fetchError } = await useAsyncData('plans-list', async () => {
+  await planStore.getPlanChosen()
+  const data = await authFetch('/api/plans')
+  planStore.storePlans(data)
+  return true
+})
+
+if (fetchError.value) {
+  throw createError({ statusCode: 500, statusMessage: 'Failed to load plans' })
+}
+
+const plans = computed(() => planStore.plans)
+
+function submitPlanDeletion(id: string) {
+  planStore.deletePlan(id)
+}
+
+function updateSelectedPlan(id: string) {
+  router.push('/plansList/' + id)
+}
+
+function isOwner(ownerEmail: string) {
+  return ownerEmail === userStore.userID
+}
+
+function checkSelected(id: string) {
+  return planStore.chosenPlan === id
+}
+
+function changeSelected(id: string) {
+  planStore.setChosenPlan(id)
+}
 </script>
-
-<style scoped>
-.plan-card {
-  margin: 10px;
-}
-
-.planslist-page {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-}
-</style>
-

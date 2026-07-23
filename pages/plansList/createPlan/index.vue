@@ -1,44 +1,36 @@
 <template>
   <div>
-    <PlanEditor ref="PlanEditorComponent"></PlanEditor>
-    <br />
-    <v-btn class="mr-1" @click="cancelPlan" color="warning">Cancel</v-btn>
-    <v-btn @click="submitPlan" color="success">Create Plan</v-btn>
+    <PlanEditor ref="PlanEditorComponent" />
+    <div class="d-flex flex-wrap ga-2 mt-4">
+      <v-btn color="warning" variant="elevated" @click="cancelPlan">Cancel</v-btn>
+      <v-btn color="success" variant="elevated" @click="submitPlan">Create Plan</v-btn>
+    </div>
   </div>
 </template>
 
-<script>
-import PlanEditor from "@/components/PlanEditor";
+<script setup lang="ts">
+definePageMeta({ middleware: ['check-auth', 'login-check'] })
 
-export default {
-  middleware: ["checkAuth", "loginCheck"],
-  components: {
-    PlanEditor,
-  },
-  methods: {
-    submitPlan() {
-      if (this.$refs.PlanEditorComponent.checkValidation()) {
-        var p = this.$refs.PlanEditorComponent.getPlan();
+const planStore = usePlanStore()
+const router = useRouter()
 
-        // for (let [key, value] of Object.entries(p.passages)) {
-        //   console.log(`${key}:`);
-        //   for (let [key2, value2] of Object.entries(p.passages[key])) {
-        //     console.log(`${key2}: ${value2}`);
-        //   }
-        // }
+const PlanEditorComponent = ref()
 
-        this.$store.dispatch("planStore/createPlan", {
-          creatorEmail: p.creatorEmail,
-          planName: p.planName,
-          description: p.description,
-          passages: p.passages,
-        });
-        this.$router.push("/plansList");
-      }
-    },
-    cancelPlan() {
-      this.$router.push("/plansList");
-    },
-  },
-};
+async function submitPlan() {
+  const valid = await PlanEditorComponent.value.checkValidation()
+  if (!valid) return
+
+  const p = PlanEditorComponent.value.getPlan()
+  await planStore.createPlan({
+    creatorEmail: p.creatorEmail,
+    planName: p.planName,
+    description: p.description,
+    passages: p.passages
+  })
+  router.push('/plansList')
+}
+
+function cancelPlan() {
+  router.push('/plansList')
+}
 </script>

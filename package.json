@@ -1,36 +1,35 @@
 {
   "name": "qtapp",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "description": "Your Personal QT App and Journaling App",
   "author": "RogerY",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development nodemon -r dotenv/config server/index.js --watch server",
+    "dev": "nuxt dev",
     "build": "nuxt build",
-    "start": "cross-env NODE_ENV=production node server/index.js",
-    "generate": "nuxt generate"
+    "start": "node .output/server/index.mjs",
+    "generate": "nuxt generate",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck"
   },
   "dependencies": {
-    "@nuxtjs/axios": "^5.13.1",
-    "@nuxtjs/firebase": "^8.2.2",
-    "@nuxtjs/vuetify": "^1.11.2",
-    "body-parser": "^1.19.0",
-    "cross-env": "^5.2.0",
-    "dotenv": "^8.2.0",
-    "express": "^4.16.4",
-    "firebase": "^9.10.0",
-    "firebase-admin": "^11.0.1",
-    "js-cookie": "^2.2.1",
-    "log4js": "^6.4.0",
-    "mongoose": "^6.4.6",
-    "mongoose-field-encryption": "3.0.6",
-    "node-cache": "^5.1.2",
-    "nuxt": "^2.14.6",
-    "vue-gtag": "^1.16.1",
-    "sass": "~1.32.12",
-    "sass-loader": "10.1.1"
+    "@pinia/nuxt": "^0.11.0",
+    "firebase": "^11.0.0",
+    "firebase-admin": "^13.0.0",
+    "mongoose": "^8.9.0",
+    "mongoose-field-encryption": "^3.0.6",
+    "nuxt": "^4.0.0",
+    "nuxt-gtag": "^3.0.0",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0",
+    "vuetify": "^3.7.0",
+    "vuetify-nuxt-module": "^0.18.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.20"
+    "@mdi/font": "^7.4.0",
+    "typescript": "^5.7.0",
+    "vue-tsc": "^2.2.0"
   }
 }

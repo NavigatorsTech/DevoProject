@@ -2,12 +2,7 @@
   <v-form ref="PlanEditorForm">
     <v-row>
       <v-col cols="12" md="4">
-        <v-text-field
-          v-model="planName"
-          :rules="nameRules"
-          label="Plan Name"
-          required
-        ></v-text-field>
+        <v-text-field v-model="planName" :rules="nameRules" label="Plan Name" required />
       </v-col>
     </v-row>
     <v-row>
@@ -15,319 +10,285 @@
         <v-textarea
           v-model="description"
           :rules="descriptionRules"
-          :auto-grow="true"
+          auto-grow
           label="Description"
           :placeholder="initialTADescription"
           :rows="initialTARows"
           required
-        ></v-textarea>
+        />
       </v-col>
     </v-row>
     <v-row>
-      <v-col cols="12" sm="2">
-        <v-menu
-          ref="menu"
-          v-model="menu"
-          :close-on-content-click="false"
-          :return-value.sync="date"
-          transition="scale-transition"
-          offset-y
-          max-width="290px"
-          min-width="290px"
-        >
-          <template v-slot:activator="{ on }">
-            <v-text-field
-              v-model="displayMonthInUTCFormat"
-              label="Month"
-              append-icon="mdi-calendar-month"
-              readonly
-              v-on="on"
-              @click="tempStoreMonthPassages()"
-            ></v-text-field>
-          </template>
-          <v-date-picker
-            v-model="date"
-            :show-current="false"
-            type="month"
-            no-title
-            scrollable
-          >
-            <v-spacer></v-spacer>
-            <v-btn text color="primary" @click="menu = false">Cancel</v-btn>
-            <v-btn text color="primary" @click="$refs.menu.save(date)">OK</v-btn>
-          </v-date-picker>
-        </v-menu>
+      <v-col cols="6" sm="2">
+        <v-select
+          v-model="selectedMonthNum"
+          :items="monthOptions"
+          label="Month"
+          density="compact"
+          prepend-icon="mdi-calendar-month"
+        />
+      </v-col>
+      <v-col cols="6" sm="2">
+        <v-select v-model="selectedYear" :items="yearOptions" label="Year" density="compact" />
       </v-col>
     </v-row>
-    <v-data-table
-      :headers="headers"
-      :items="monthPassages"
-      :height="height"
-      dense
-      fixed-header
-      disable-pagination
-      hide-default-footer
-    >
-      <template v-slot:[`item.passage`]="props">
-        <!-- BEWARE of backticks
-        The item here relates to data-table's item slot -->
-        <v-edit-dialog
-          :return-value.sync="props.item.passage"
-          large
-          persistent
-          @open="setPPID(props.item.day)"
-          @save="save"
-          @cancel="cancel"
-          @close="close"
-        >
-          <div>{{ props.item.passage }}</div>
-          <template v-slot:input>
-            <br />
-            <PassagePicker
-              :ppID="props.item.day"
-              :isCompleted="reset"
-              @stepResetDone="resetComplete"
-              v-model="props.item.passage"
-            ></PassagePicker>
-          </template>
-        </v-edit-dialog>
-      </template>
-    </v-data-table>
+    <v-table density="compact" height="300" fixed-header>
+      <thead>
+        <tr>
+          <th>Day of Month</th>
+          <th>Passage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="row in monthPassages" :key="row.day">
+          <td>{{ row.day }}</td>
+          <td>
+            <v-dialog v-model="dialogOpen[row.day]" max-width="600" persistent>
+              <template v-slot:activator="{ props: activatorProps }">
+                <div v-bind="activatorProps" style="cursor: pointer">{{ row.passage }}</div>
+              </template>
+              <v-card>
+                <v-card-title>Day {{ row.day }}</v-card-title>
+                <v-card-text>
+                  <PassagePicker
+                    :ref="(el) => setPickerRef(row.day, el)"
+                    :ppID="row.day"
+                    v-model="row.passage"
+                    @ready="(v) => (pickerReady[row.day] = v)"
+                    @can-advance="(v) => (pickerCanAdvance[row.day] = v)"
+                  />
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer />
+                  <v-btn color="warning" variant="text" @click="cancelEdit(row.day)">Cancel</v-btn>
+                  <v-btn v-if="pickerCanAdvance[row.day]" color="indigo" variant="text" @click="pickerRefs[row.day]?.advance()">
+                    Next
+                  </v-btn>
+                  <v-btn v-if="pickerReady[row.day]" color="success" variant="text" @click="saveEdit(row.day)">Save</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+          </td>
+        </tr>
+      </tbody>
+    </v-table>
     <v-snackbar v-model="snack" :timeout="3000" :color="snackColor">
       {{ snackText }}
-      <v-btn text @click="snack = false">Close</v-btn>
+      <template v-slot:actions>
+        <v-btn variant="text" @click="snack = false">Close</v-btn>
+      </template>
     </v-snackbar>
   </v-form>
 </template>
 
-<script>
-import PassagePicker from "@/components/PassagePicker";
+<script setup lang="ts">
+const props = defineProps<{
+  propPlanName?: string
+  propDescription?: string
+  propTempStore?: Record<string, Record<string, string>>
+}>()
 
-export default {
-  props: ["propPlanName", "propDescription", "propTempStore"],
-  components: {
-    PassagePicker
-  },
-  data() {
-    return {
-      planName: this.propPlanName || "",
-      nameRules: [
-        v => !!v || "Name is required", // !! converts to boolean
-      ],
-      description: this.propDescription || "",
-      descriptionRules: [v => !!v || "Description is required"],
-      initialTADescription: "A simple description of your plan",
-      initialTARows: "1",
-      date: new Date().toISOString().substr(0, 7),
-      menu: false,
-      height: 300,
-      headers: [
-        {
-          text: "Day of Month",
-          align: "left",
-          sortable: false,
-          value: "day"
-        },
-        {
-          text: "Passage",
-          sortable: false,
-          value: "passage"
-        }
-      ],
-      tempStore: this.initTempStore(),
-      submitStore: {},
-      sortedSubmitStore: {},
-      currentPPID: 99,
-      snack: false,
-      snackColor: "",
-      snackText: "",
-      reset: {
-        resetNow: false,
-        ppID: 199
-      }
-    };
-  },
-  methods: {
-    setPPID(id) {
-      this.currentPPID = id;
-    },
-    resetComplete(id) {
-      this.reset.ppID = id;
-      this.reset.resetNow = false;
-    },
-    // Checking if the chosen month has any passages stored
-    isTempStored() {
-      try {
-        if (this.tempStore[this.date]) {
-          return true;
-        }
-      } catch {
-        return false;
-      }
-    },
-    tempStoreMonthPassages() {
-      let currentDate = this.date;
-      let currentMonthPassages = this.monthPassages;
-      this.tempStore[currentDate] = currentMonthPassages;
-    },
-    // preparing for submission, get tempstore and current month
-    emptyPassageExtraction() {
-      var monthKey = this.displayMonthInUTCFormat;
+const userStore = useUserStore()
 
-      // Storing current active month
-      var object = {};
-      for (var x in this.monthPassages) {
-        if (this.monthPassages[x].passage !== "-- Enter Passage --") {
-          var dayKey = this.monthPassages[x].day;
-          object[dayKey] = this.monthPassages[x].passage;
-        }
-        if (Object.keys(object).length !== 0) {
-          this.submitStore[monthKey] = object;
-        }
-      }
+const PlanEditorForm = ref()
 
-      // Storing other months
-      for (let [key, value] of Object.entries(this.tempStore)) {
-        var object2 = {};
-        let convertedKey =
-          new Date(key).toString().substr(4, 3) +
-          " " +
-          new Date(key).toString().substr(11, 4);
-        for (let [key2, value2] of Object.entries(this.tempStore[key])) {
-          if (this.tempStore[key][key2].passage !== "-- Enter Passage --") {
-            var dayKey = this.tempStore[key][key2].day;
-            object2[dayKey] = this.tempStore[key][key2].passage;
-          }
-        }
-        if (
-          !this.submitStore.hasOwnProperty(convertedKey) &&
-          Object.keys(object2).length !== 0
-        ) {
-          this.submitStore[convertedKey] = object2;
-        }
-      }
-    },
-    // Must be done after submit store is prepared by emptyPassageExtraction()
-    sortPassageByDate() {
-      var sortStore = [];
-      for (let i in this.submitStore) {
-        sortStore.push(new Date(i));
-      }
+const planName = ref(props.propPlanName || '')
+const nameRules = [(v: string) => !!v || 'Name is required'] // !! converts to boolean
+const description = ref(props.propDescription || '')
+const descriptionRules = [(v: string) => !!v || 'Description is required']
+const initialTADescription = 'A simple description of your plan'
+const initialTARows = '1'
 
-      var sortedStore = sortStore.slice().sort((a, b) => a - b);
+const date = ref(new Date().toISOString().substring(0, 7)) // YYYY-MM
 
-      this.sortedSubmitStore = {};
-      for (let j in sortedStore) {
-        var tempKey =
-          sortedStore[j].toString().substr(4, 3) +
-          " " +
-          sortedStore[j].toString().substr(11, 4);
-        this.sortedSubmitStore[tempKey] = this.submitStore[tempKey];
-      }
-    },
-    save() {
-      this.snack = true;
-      this.snackColor = "success";
-      this.snackText = "Data saved";
-    },
-    cancel() {
-      this.snack = true;
-      this.snackColor = "error";
-      this.snackText = "Canceled";
-    },
-    close() {
-      // this.reset.ppID = this.currentPPID;
-      // this.reset.resetNow = true;
-      this.reset = Object.assign({}, this.reset, {
-        ppID: this.currentPPID,
-        resetNow: true
-      }); // Needed for reactivity
-    },
-    getPlan() {
-      var userID = this.$store.getters["userStore/getUserID"];
-      this.emptyPassageExtraction();
-      this.sortPassageByDate();
-      return {
-        creatorEmail: userID,
-        planName: this.planName,
-        description: this.description,
-        passages: this.sortedSubmitStore
-      };
-    },
-    initTempStore() {
-      if (this.propTempStore != null || this.propTempStore != undefined) {
-        var object = {};
-        for (let [key, value] of Object.entries(this.propTempStore)) {
-          var numofDays = this.numDaysInMonth(
-            this.monthToNumConvertor(key.slice(0, 3)),
-            key.slice(4, 8)
-          );
-          let currentMonthPassages = [];
-          for (let i = 1; i <= numofDays; i++) {
-            currentMonthPassages.push({
-              day: i,
-              passage: "-- Enter Passage --"
-            });
-          }
+const monthOptions = [
+  { title: 'January', value: 1 }, { title: 'February', value: 2 }, { title: 'March', value: 3 },
+  { title: 'April', value: 4 }, { title: 'May', value: 5 }, { title: 'June', value: 6 },
+  { title: 'July', value: 7 }, { title: 'August', value: 8 }, { title: 'September', value: 9 },
+  { title: 'October', value: 10 }, { title: 'November', value: 11 }, { title: 'December', value: 12 }
+]
+const currentYear = new Date().getFullYear()
+const yearOptions = Array.from({ length: 12 }, (_, i) => currentYear - 3 + i)
 
-          for (let [key2, value2] of Object.entries(this.propTempStore[key])) {
-            currentMonthPassages[key2 - 1].passage = value2;
-          }
+const selectedYear = computed({
+  get: () => Number(date.value.slice(0, 4)),
+  set: (year: number) => {
+    tempStoreMonthPassages()
+    date.value = `${year}-${date.value.slice(5, 7)}`
+  }
+})
 
-          var month = this.monthToNumConvertor(key.slice(0, 3));
-          // ISO month needs 0 in front
-          if (parseInt(month) < 10) {
-            month = "0" + month;
-          }
-          object[key.slice(4, 8) + "-" + month] = currentMonthPassages;
-        }
-      }
-      return object || {};
-    },
-    monthToNumConvertor(month) {
-      return "JanFebMarAprMayJunJulAugSepOctNovDec".indexOf(month) / 3 + 1; // Get month in number
-    },
-    numDaysInMonth(month, year) {
-      return new Date(
-        year, // year
-        month, // month
-        0
-      ).getDate();
-    },
-    checkValidation() {
-      return this.$refs.PlanEditorForm.validate();
+const selectedMonthNum = computed({
+  get: () => Number(date.value.slice(5, 7)),
+  set: (month: number) => {
+    tempStoreMonthPassages()
+    const monthStr = month < 10 ? `0${month}` : `${month}`
+    date.value = `${date.value.slice(0, 4)}-${monthStr}`
+  }
+})
+
+interface DayPassage {
+  day: number
+  passage: string
+}
+
+const tempStore = ref<Record<string, DayPassage[]>>(initTempStore())
+const submitStore: Record<string, Record<string, string>> = {}
+let sortedSubmitStore: Record<string, Record<string, string>> = {}
+
+const snack = ref(false)
+const snackColor = ref('')
+const snackText = ref('')
+
+const dialogOpen = ref<Record<number, boolean>>({})
+const pickerReady = ref<Record<number, boolean>>({})
+const pickerCanAdvance = ref<Record<number, boolean>>({})
+const pickerRefs: Record<number, any> = {}
+
+function setPickerRef(day: number, el: any) {
+  pickerRefs[day] = el
+}
+
+function cancelEdit(day: number) {
+  snack.value = true
+  snackColor.value = 'error'
+  snackText.value = 'Canceled'
+  dialogOpen.value[day] = false
+  pickerRefs[day]?.reset()
+}
+
+function saveEdit(day: number) {
+  snack.value = true
+  snackColor.value = 'success'
+  snackText.value = 'Data saved'
+  dialogOpen.value[day] = false
+  pickerRefs[day]?.reset()
+}
+
+// Checking if the chosen month has any passages stored
+function isTempStored(): boolean {
+  return !!tempStore.value[date.value]
+}
+
+function tempStoreMonthPassages() {
+  const currentDate = date.value
+  const currentMonthPassages = monthPassages.value
+  tempStore.value[currentDate] = currentMonthPassages
+}
+
+const displayMonthInUTCFormat = computed(() => {
+  // Needed to match the server's "MMM YYYY" month-key format
+  const d = new Date(date.value)
+  return d.toString().substring(4, 7) + ' ' + d.toString().substring(11, 15)
+})
+
+const numDaysInCurrentMonth = computed(() => {
+  return new Date(Number(date.value.slice(0, 4)), Number(date.value.slice(5, 7)), 0).getDate()
+})
+
+const monthPassages = computed<DayPassage[]>(() => {
+  if (!isTempStored()) {
+    const currentMonthPassages: DayPassage[] = []
+    for (let i = 1; i <= numDaysInCurrentMonth.value; i++) {
+      currentMonthPassages.push({ day: i, passage: '-- Enter Passage --' })
     }
-  },
-  computed: {
-    displayMonthInUTCFormat() {
-      // Needed because Date Picker requires ISO format from model
-      let newDate =
-        new Date(this.date).toString().substr(4, 3) +
-        " " +
-        new Date(this.date).toString().substr(11, 4);
-      return newDate;
-    },
-    numDaysInCurrentMonth: function() {
-      return new Date(
-        this.date.slice(0, 4), // year
-        this.date.slice(5, 7), // month
-        0
-      ).getDate();
-    },
-    monthPassages: function() {
-      if (!this.isTempStored()) {
-        let currentMonthPassages = [];
-        for (let i = 1; i <= this.numDaysInCurrentMonth; i++) {
-          currentMonthPassages.push({
-            day: i,
-            passage: "-- Enter Passage --"
-          });
-        }
-        return currentMonthPassages;
-      } else {
-        return this.tempStore[this.date];
-      }
+    return currentMonthPassages
+  }
+  return tempStore.value[date.value]!
+})
+
+// preparing for submission, get tempstore and current month
+function emptyPassageExtraction() {
+  const monthKey = displayMonthInUTCFormat.value
+
+  // Storing current active month
+  const currentMonthObject: Record<string, string> = {}
+  for (const row of monthPassages.value) {
+    if (row.passage !== '-- Enter Passage --') {
+      currentMonthObject[row.day.toString()] = row.passage
     }
   }
-};
+  if (Object.keys(currentMonthObject).length !== 0) {
+    submitStore[monthKey] = currentMonthObject
+  }
+
+  // Storing other months
+  for (const [key, monthRows] of Object.entries(tempStore.value)) {
+    const otherMonthObject: Record<string, string> = {}
+    const convertedKey = new Date(key).toString().substring(4, 7) + ' ' + new Date(key).toString().substring(11, 15)
+    for (const row of monthRows) {
+      if (row.passage !== '-- Enter Passage --') {
+        otherMonthObject[row.day.toString()] = row.passage
+      }
+    }
+    if (!Object.prototype.hasOwnProperty.call(submitStore, convertedKey) && Object.keys(otherMonthObject).length !== 0) {
+      submitStore[convertedKey] = otherMonthObject
+    }
+  }
+}
+
+// Must be done after submit store is prepared by emptyPassageExtraction()
+function sortPassageByDate() {
+  const sortedKeys = Object.keys(submitStore)
+    .map((key) => new Date(key))
+    .slice()
+    .sort((a, b) => a.getTime() - b.getTime())
+
+  sortedSubmitStore = {}
+  for (const sortedDate of sortedKeys) {
+    const tempKey = sortedDate.toString().substring(4, 7) + ' ' + sortedDate.toString().substring(11, 15)
+    sortedSubmitStore[tempKey] = submitStore[tempKey]!
+  }
+}
+
+function getPlan() {
+  emptyPassageExtraction()
+  sortPassageByDate()
+  return {
+    creatorEmail: userStore.userID,
+    planName: planName.value,
+    description: description.value,
+    passages: sortedSubmitStore
+  }
+}
+
+function monthToNumConvertor(month: string): number {
+  return 'JanFebMarAprMayJunJulAugSepOctNovDec'.indexOf(month) / 3 + 1 // Get month in number
+}
+
+function numDaysInMonth(month: number, year: string): number {
+  return new Date(Number(year), month, 0).getDate()
+}
+
+function initTempStore(): Record<string, DayPassage[]> {
+  const result: Record<string, DayPassage[]> = {}
+  if (props.propTempStore == null) return result
+
+  for (const [key, value] of Object.entries(props.propTempStore)) {
+    const numofDays = numDaysInMonth(monthToNumConvertor(key.slice(0, 3)), key.slice(4, 8))
+    const currentMonthPassages: DayPassage[] = []
+    for (let i = 1; i <= numofDays; i++) {
+      currentMonthPassages.push({ day: i, passage: '-- Enter Passage --' })
+    }
+
+    for (const [day, passage] of Object.entries(value)) {
+      currentMonthPassages[Number(day) - 1]!.passage = passage
+    }
+
+    let month = monthToNumConvertor(key.slice(0, 3)).toString()
+    // ISO month needs 0 in front
+    if (Number(month) < 10) {
+      month = '0' + month
+    }
+    result[key.slice(4, 8) + '-' + month] = currentMonthPassages
+  }
+  return result
+}
+
+async function checkValidation(): Promise<boolean> {
+  const { valid } = await PlanEditorForm.value.validate()
+  return valid
+}
+
+defineExpose({ getPlan, checkValidation })
 </script>

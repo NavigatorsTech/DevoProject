@@ -37,15 +37,29 @@ jobs:
             set -euo pipefail
             cd /QTNuxtProject
 
+            # Nuxt 4 requires Node 18+; the box's system Node may still be on an
+            # older version installed for the previous Express-based app. Load nvm
+            # if present so this deploy always builds/runs under Node 20 regardless
+            # of what the shell's default `node` resolves to.
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && nvm use 20
+
             restart_app() {
-              pm2 delete ecosystem.config.js 2>/dev/null || true
+              pm2 delete ecosystem.config.cjs 2>/dev/null || true
               if command -v fuser >/dev/null 2>&1; then
                 fuser -k 3000/tcp 2>/dev/null || true
               elif command -v lsof >/dev/null 2>&1; then
                 lsof -ti tcp:3000 2>/dev/null | xargs -r kill -9 2>/dev/null || true
               fi
               sleep 2
-              pm2 start ecosystem.config.js
+              pm2 start ecosystem.config.cjs
+            }
+
+            # No more -k/https here: Nitro serves plain HTTP on 3000, with nginx
+            # terminating TLS in front of it (see docs/migration-plan.md Phase 6) -
+            # the old app terminated HTTPS itself in-process, this one doesn't.
+            health_check() {
+              curl -fsS http://127.0.0.1:3000/ > /dev/null
             }
 
             PREV=$(git rev-parse HEAD)
@@ -55,12 +69,23 @@ jobs:
             npm run build
             restart_app
             sleep 5
-            if ! curl -kfsS https://127.0.0.1:3000/ > /dev/null; then
+            if ! health_check; then
               echo "Health check failed, rolling back to $PREV"
               git reset --hard "$PREV"
               npm ci
               npm run build
               restart_app
+              sleep 5
+              # Confirm the rollback itself actually worked - a prior version of this
+              # script exited here unconditionally, so a rollback that ALSO failed to
+              # come up looked identical in the logs to a clean rollback. Distinguish
+              # them so whoever's watching Actions knows whether this is "fine, old
+              # version is back" or "the site may actually be down, go look now."
+              if ! health_check; then
+                echo "::error::Rollback ALSO failed health check - site may be down. Manual intervention required immediately."
+                exit 1
+              fi
+              echo "Rolled back successfully to $PREV - new commit failed, but the site is back up on the previous version."
               exit 1
             fi
             echo "Deploy successful at $(git rev-parse --short HEAD)"

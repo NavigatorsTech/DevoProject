@@ -8,105 +8,101 @@
       draftKey="qtDraft:create"
       :draftSameDayOnly="true"
       @draft-restored="onDraftRestored"
-    ></QTJournalEditor>
-    <div class="d-flex flex-wrap">
-      <v-btn class="ma-1" @click="cancel" color="warning">Cancel</v-btn>
-      <v-btn class="ma-1" @click="copyContents" color="primary">Share</v-btn>
-      <v-btn class="ma-1" @click="submit" color="success">Save</v-btn>
+    />
+    <div class="d-flex flex-wrap ga-2 mt-4">
+      <v-btn color="warning" variant="elevated" @click="cancel">Cancel</v-btn>
+      <v-btn color="primary" variant="elevated" @click="copyContents">Share</v-btn>
+      <v-btn color="success" variant="elevated" @click="submit">Save</v-btn>
     </div>
 
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">
       {{ snackText }}
-      <template v-slot:action="{ attrs }">
-        <v-btn v-if="showDiscardDraftButton" text v-bind="attrs" @click="discardDraftFromSnackbar">Discard</v-btn>
-        <v-btn text v-bind="attrs" @click="snack = false; showDiscardDraftButton = false;">Close</v-btn>
+      <template v-slot:actions>
+        <v-btn v-if="showDiscardDraftButton" variant="text" @click="discardDraftFromSnackbar">Discard</v-btn>
+        <v-btn variant="text" @click="snack = false; showDiscardDraftButton = false">Close</v-btn>
       </template>
     </v-snackbar>
   </div>
 </template>
 
-<script>
-import QTJournalEditor from "@/components/QTJournalEditor";
+<script setup lang="ts">
+definePageMeta({ middleware: ['check-auth', 'login-check'] })
 
-export default {
-  mounted() {
-    // To ensure that if there were a refresh, correct passage from plan is shown
-    this.$store.dispatch("planStore/getPlanChosen").then(() => {
-      this.$store.dispatch("passageStore/refreshPassage");
-    });
-  },
-  middleware: ["checkAuth", "loginCheck"],
-  components: {
-    QTJournalEditor,
-  },
-  data() {
-    return {
-      date: new Date(),
-      snack: false,
-      snackColor: "",
-      snackText: "",
-      showDiscardDraftButton: false,
-    };
-  },
-  methods: {
-    onDraftRestored: function () {
-      this.snack = true;
-      this.snackColor = "info";
-      this.snackText = "Restored your unsaved draft";
-      this.showDiscardDraftButton = true;
-    },
-    discardDraftFromSnackbar: function () {
-      this.$refs.QTJournalEditorComponent.discardDraft();
-      this.snack = false;
-      this.showDiscardDraftButton = false;
-    },
-    copyContents: function () {
-      var entry = this.$refs.QTJournalEditorComponent.getEntry();
-      var copyText = entry.passageReference + "\n\nTitle: " + entry.title + "\n\n" + entry.thoughts + "\n\nApplication: " + entry.applicationImplication;
-      navigator.clipboard.writeText(copyText).then(() => {
-        this.showDiscardDraftButton = false;
-        this.snack = true;
-        this.snackColor = "success";
-        this.snackText = "Copied to Clipboard";
-      });
-    },
-    submit: async function () {
-      if (this.$refs.QTJournalEditorComponent.checkValidation()) {
-        var userID = this.$store.getters["userStore/getUserID"];
-        var entry = this.$refs.QTJournalEditorComponent.getEntry();
+const userStore = useUserStore()
+const planStore = usePlanStore()
+const passageStore = usePassageStore()
+const journalStore = useJournalStore()
+const router = useRouter()
 
-        var ok = await this.$store.dispatch("journalStore/createEntry", {
-          creatorEmail: userID,
-          date: this.date,
-          passageReference: this.getReference,
-          title: entry.title,
-          thoughts: entry.thoughts,
-          applicationImplication: entry.applicationImplication,
-        });
+const QTJournalEditorComponent = ref()
 
-        if (ok) {
-          this.$refs.QTJournalEditorComponent.clearDraft();
-          this.$router.push("/journalList");
-        } else {
-          this.showDiscardDraftButton = false;
-          this.snack = true;
-          this.snackColor = "error";
-          this.snackText = "Couldn't save your entry — your draft is safe, please try again.";
-        }
-      }
-    },
-    cancel: function () {
-      this.$refs.QTJournalEditorComponent.clearDraft();
-      this.$router.push("/journalList");
-    },
-  },
-  computed: {
-    getPassageContents: function () {
-      return this.$store.getters["passageStore/getTodaysPassage"];
-    },
-    getReference: function () {
-      return this.$store.getters["passageStore/getTodaysReference"];
-    },
-  },
-};
+const date = new Date()
+const snack = ref(false)
+const snackColor = ref('')
+const snackText = ref('')
+const showDiscardDraftButton = ref(false)
+
+onMounted(() => {
+  // Ensures that after a refresh, the correct passage from plan is shown
+  planStore.getPlanChosen().then(() => {
+    passageStore.refreshPassage()
+  })
+})
+
+const getPassageContents = computed(() => passageStore.todaysPassage)
+const getReference = computed(() => passageStore.todaysReference)
+
+function onDraftRestored() {
+  snack.value = true
+  snackColor.value = 'info'
+  snackText.value = 'Restored your unsaved draft'
+  showDiscardDraftButton.value = true
+}
+
+function discardDraftFromSnackbar() {
+  QTJournalEditorComponent.value.discardDraft()
+  snack.value = false
+  showDiscardDraftButton.value = false
+}
+
+function copyContents() {
+  const entry = QTJournalEditorComponent.value.getEntry()
+  const copyText = `${entry.passageReference}\n\nTitle: ${entry.title}\n\n${entry.thoughts}\n\nApplication: ${entry.applicationImplication}`
+  navigator.clipboard.writeText(copyText).then(() => {
+    showDiscardDraftButton.value = false
+    snack.value = true
+    snackColor.value = 'success'
+    snackText.value = 'Copied to Clipboard'
+  })
+}
+
+async function submit() {
+  const valid = await QTJournalEditorComponent.value.checkValidation()
+  if (!valid) return
+
+  const entry = QTJournalEditorComponent.value.getEntry()
+  const ok = await journalStore.createEntry({
+    creatorEmail: userStore.userID,
+    date,
+    passageReference: getReference.value,
+    title: entry.title,
+    thoughts: entry.thoughts,
+    applicationImplication: entry.applicationImplication
+  })
+
+  if (ok) {
+    QTJournalEditorComponent.value.clearDraft()
+    router.push('/journalList')
+  } else {
+    showDiscardDraftButton.value = false
+    snack.value = true
+    snackColor.value = 'error'
+    snackText.value = "Couldn't save your entry — your draft is safe, please try again."
+  }
+}
+
+function cancel() {
+  QTJournalEditorComponent.value.clearDraft()
+  router.push('/journalList')
+}
 </script>
