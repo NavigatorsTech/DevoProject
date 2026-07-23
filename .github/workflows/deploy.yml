@@ -55,6 +55,13 @@ jobs:
               pm2 start ecosystem.config.cjs
             }
 
+            # No more -k/https here: Nitro serves plain HTTP on 3000, with nginx
+            # terminating TLS in front of it (see docs/migration-plan.md Phase 6) -
+            # the old app terminated HTTPS itself in-process, this one doesn't.
+            health_check() {
+              curl -fsS http://127.0.0.1:3000/ > /dev/null
+            }
+
             PREV=$(git rev-parse HEAD)
             git fetch --prune origin master
             git reset --hard origin/master
@@ -62,15 +69,23 @@ jobs:
             npm run build
             restart_app
             sleep 5
-            # No more -k/https here: Nitro serves plain HTTP on 3000, with nginx
-            # terminating TLS in front of it (see docs/migration-plan.md Phase 6) -
-            # the old app terminated HTTPS itself in-process, this one doesn't.
-            if ! curl -fsS http://127.0.0.1:3000/ > /dev/null; then
+            if ! health_check; then
               echo "Health check failed, rolling back to $PREV"
               git reset --hard "$PREV"
               npm ci
               npm run build
               restart_app
+              sleep 5
+              # Confirm the rollback itself actually worked - a prior version of this
+              # script exited here unconditionally, so a rollback that ALSO failed to
+              # come up looked identical in the logs to a clean rollback. Distinguish
+              # them so whoever's watching Actions knows whether this is "fine, old
+              # version is back" or "the site may actually be down, go look now."
+              if ! health_check; then
+                echo "::error::Rollback ALSO failed health check - site may be down. Manual intervention required immediately."
+                exit 1
+              fi
+              echo "Rolled back successfully to $PREV - new commit failed, but the site is back up on the previous version."
               exit 1
             fi
             echo "Deploy successful at $(git rev-parse --short HEAD)"
