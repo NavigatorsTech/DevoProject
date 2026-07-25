@@ -48,6 +48,8 @@
 </template>
 
 <script setup lang="ts">
+import { toDayIndex } from '~/stores/journal'
+
 definePageMeta({ middleware: ['check-auth'] })
 
 const userStore = useUserStore()
@@ -55,7 +57,7 @@ const journalStore = useJournalStore()
 const planStore = usePlanStore()
 const passageStore = usePassageStore()
 
-const date = new Date()
+const date = ref(new Date())
 
 // SSR: preload today's passage so the rendered HTML already contains it on
 // first paint (folds in what used to be the root nuxtServerInit's job).
@@ -66,7 +68,11 @@ await useAsyncData('home-todays-passage', async () => {
 
 // SSR: preload the user's journal entries (for the streak card) if logged in.
 // Non-fatal on failure - the home page must still render for the passage.
-await useAsyncData('home-qt-entries', async () => {
+// `watch` re-runs this on the client once Firebase's async onIdTokenChanged
+// flips isAuthenticated to true - otherwise, when the SSR pass renders
+// unauthenticated (e.g. an expired jwt cookie), the streak would stay empty
+// until a manual refresh since useAsyncData doesn't re-run after hydration.
+const { refresh: refreshEntries } = await useAsyncData('home-qt-entries', async () => {
   if (!userStore.isAuthenticated) return null
   try {
     const entries = await authFetch('/api/qtJournalEntries', {
@@ -77,7 +83,30 @@ await useAsyncData('home-qt-entries', async () => {
     // ignore
   }
   return true
-})
+}, { watch: [() => userStore.isAuthenticated] })
+
+// Re-fetches the passage/entries when the local calendar day has actually
+// rolled over, so a tab left open past midnight doesn't keep showing
+// yesterday's passage/date/streak until a manual refresh. Guarded by
+// toDayIndex so focus/visibility events and the interval tick are no-ops
+// except right after a real day change.
+let loadedDay = toDayIndex(date.value)
+
+async function checkDayRollover() {
+  const now = new Date()
+  if (toDayIndex(now) === loadedDay) return
+  loadedDay = toDayIndex(now)
+  date.value = now
+  await planStore.getPlanChosen()
+  await passageStore.refreshPassage()
+  await refreshEntries()
+}
+
+function onVisible() {
+  if (document.visibilityState === 'visible') checkDayRollover()
+}
+
+let rolloverInterval: ReturnType<typeof setInterval> | undefined
 
 onMounted(() => {
   // Ensures that after a refresh, the correct passage from the user's chosen
@@ -86,6 +115,16 @@ onMounted(() => {
   planStore.getPlanChosen().then(() => {
     passageStore.refreshPassage()
   })
+
+  document.addEventListener('visibilitychange', onVisible)
+  window.addEventListener('focus', onVisible)
+  rolloverInterval = setInterval(checkDayRollover, 60_000)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisible)
+  window.removeEventListener('focus', onVisible)
+  clearInterval(rolloverInterval)
 })
 
 const getPassageContents = computed(() => passageStore.todaysPassage)
