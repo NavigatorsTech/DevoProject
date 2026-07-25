@@ -27,6 +27,7 @@
       <v-chip
         class="ma-2 flex-shrink-0"
         size="small"
+        density="default"
         color="primary"
         :variant="outlined ? 'outlined' : 'flat'"
         @click="$emit('selected', planID)"

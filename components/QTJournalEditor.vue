@@ -21,6 +21,9 @@
                 v-model="entryThoughts"
                 variant="solo"
                 counter
+                auto-grow
+                rows="6"
+                max-rows="14"
                 placeholder="This part of the passage tells me that..."
                 :rules="thoughtsRules"
               />
