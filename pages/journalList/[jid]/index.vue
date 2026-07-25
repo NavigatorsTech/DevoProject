@@ -60,7 +60,6 @@ definePageMeta({ middleware: ['check-auth', 'login-check'] })
 
 const route = useRoute()
 const router = useRouter()
-const userStore = useUserStore()
 const journalStore = useJournalStore()
 
 const id = route.params.jid as string
@@ -74,17 +73,8 @@ const snackText = ref('')
 const showDiscardDraftButton = ref(false)
 
 const { data: passageData, error: fetchError } = await useAsyncData(`journal-entry-${id}`, async () => {
-  if (journalStore.getQTEntriesLength === 0) {
-    const entries = await authFetch('/api/qtJournalEntries', {
-      params: { creatorEmail: userStore.userID }
-    })
-    journalStore.storeAllQTEntries(entries)
-  }
-
-  const entry = journalStore.getEntryUsingID(id)
-  if (!entry) {
-    throw createError({ statusCode: 404, statusMessage: 'Entry not found' })
-  }
+  const entry = await authFetch(`/api/qtJournalEntries/${id}`)
+  journalStore.upsertEntry(entry)
 
   const data: any = await authFetch('/api/passages', {
     params: { passageReference: entry.passageReference }

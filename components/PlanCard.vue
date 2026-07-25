@@ -37,10 +37,13 @@
       </v-btn>
     </v-card-actions>
     <v-expand-transition>
-      <div v-show="show">
+      <div v-if="show">
         <v-divider />
         <v-list density="compact" disabled>
-          <v-list-item v-for="(passage, i) in passages" :key="i.toString()">
+          <v-list-item v-if="fetchingPassages">
+            <v-progress-circular indeterminate size="20" color="primary" />
+          </v-list-item>
+          <v-list-item v-for="(passage, i) in loadedPassages" :key="i.toString()">
             <v-list-item-title v-for="(dayPassage, j) in passage" :key="j.toString()">
               {{ j }} {{ i }} : {{ dayPassage }}
             </v-list-item-title>
@@ -56,7 +59,9 @@ const props = defineProps<{
   planID: string
   planName: string
   planDescription: string
-  passages: Record<string, Record<string, string>>
+  // Omitted by the list endpoint (the largest part of each plan doc) - loaded
+  // lazily below when first expanded, unless a caller passes it directly.
+  passages?: Record<string, Record<string, string>>
   notOwner: boolean
   isSelected: boolean
 }>()
@@ -69,6 +74,26 @@ defineEmits<{
 
 const show = ref(false)
 const deleteDialog = ref(false)
+const loadedPassages = ref(props.passages ?? {})
+const fetchingPassages = ref(false)
+// Tracks whether a fetch has completed, independent of whether the result
+// happened to be empty (an empty-but-fetched passages map must not look
+// "not yet fetched" and trigger a refetch on every re-expand).
+let passagesFetched = props.passages != null
+
+watch(show, async (isOpen) => {
+  if (!isOpen || passagesFetched || fetchingPassages.value) return
+  fetchingPassages.value = true
+  try {
+    const plan: any = await authFetch(`/api/plans/${props.planID}`)
+    loadedPassages.value = plan.passages
+    passagesFetched = true
+  } catch (e) {
+    console.error(e)
+  } finally {
+    fetchingPassages.value = false
+  }
+})
 
 const outlined = computed(() => props.isSelected !== true)
 const chipText = computed(() => (props.isSelected === true ? 'plan selected' : 'select'))

@@ -23,6 +23,12 @@ const QTEntrySchema = new Schema<QTEntryDocument>({
   applicationImplication: { type: String, required: true, trim: true }
 })
 
+// Backs the journal list's find({ creatorEmail }).sort({ date: -1 }) - without
+// it, that query is a full collection scan. On the production collection,
+// build this in Atlas directly before deploying so Mongoose's boot-time
+// createIndex doesn't do a slow foreground build against live data.
+QTEntrySchema.index({ creatorEmail: 1, date: -1 })
+
 // Encrypted at rest. Update paths MUST go through find + mutate + .save() (not
 // findOneAndUpdate) so this pre-save hook actually fires - see docs/migration-plan.md
 // Phase 1 notes.

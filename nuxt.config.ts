@@ -38,6 +38,15 @@ export default defineNuxtConfig({
       defaults: {
         global: {
           density: 'comfortable'
+        },
+        // Buttons specifically read "too thin" to tap accurately at the global
+        // "comfortable" density (28px tall) - opt VBtn back out to Vuetify's
+        // baseline "default" density (36px tall) so buttons are a bit chunkier
+        // and easier to hit, without loosening every other density-aware
+        // component (text fields, list items, cards, etc. all stay
+        // "comfortable" via the global default above).
+        VBtn: {
+          density: 'default'
         }
       },
       theme: {
@@ -73,6 +82,19 @@ export default defineNuxtConfig({
 
   gtag: {
     id: 'G-TDZSY166ND'
+  },
+
+  // Short-lived cache in front of /api/passages/today: absorbs bursts of
+  // concurrent home-page loads without repeating the Mongo plan lookup (the
+  // ESV text itself is already cached separately for 1hr via
+  // defineCachedFunction - see server/utils/bible-retrieval.ts). Kept
+  // deliberately short: the endpoint's own "today" logic changes at midnight,
+  // and the day-rollover fix (pages/index.vue) actively requests a fresh
+  // passage right at that boundary - a long TTL here could serve yesterday's
+  // cached response past that point. 60s bounds any staleness to well under
+  // one cycle of that mechanism's own 60s polling interval.
+  routeRules: {
+    '/api/passages/today': { swr: 60 }
   },
 
   // Server-only secrets are intentionally NOT read from process.env here — this file is

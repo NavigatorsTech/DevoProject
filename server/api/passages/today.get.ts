@@ -1,7 +1,5 @@
-import { PlanModel } from '../../models/Plan'
+import { PlanModel, DEFAULT_PLAN_NAME } from '../../models/Plan'
 import { getPassage } from '../../utils/bible-retrieval'
-
-const DEFAULT_PLAN_NAME = '--- Default Nav Plan ---'
 
 function getDefaultPassage(): string {
   return `Proverbs ${new Date().getDate()}`

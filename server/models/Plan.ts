@@ -2,6 +2,11 @@ import mongoose, { type Model } from 'mongoose'
 
 const { Schema, model, models } = mongoose
 
+// The shared plan every new user is provisioned with on first login (see
+// server/api/users/verify.post.ts) and the fallback used when no planID is
+// given (see server/api/passages/today.get.ts, server/api/plans/index.get.ts).
+export const DEFAULT_PLAN_NAME = '--- Default Nav Plan ---'
+
 export interface PlanDocument {
   creatorEmail: string
   planName: string

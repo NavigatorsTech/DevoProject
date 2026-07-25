@@ -6,9 +6,7 @@ export const usePlanStore = defineStore('plan', {
 
   getters: {
     getPlans: (state) => state.plans,
-    getChosenPlan: (state) => state.chosenPlan,
-    getPlanUsingID: (state) => (id: string) => state.plans.find((p: any) => p._id === id),
-    getPlansSize: (state) => state.plans.length
+    getChosenPlan: (state) => state.chosenPlan
   },
 
   actions: {

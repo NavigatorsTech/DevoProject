@@ -1,4 +1,4 @@
-import { getAuth } from 'firebase-admin/auth'
+import { getAuth, type DecodedIdToken } from 'firebase-admin/auth'
 import { getHeader, createError, type H3Event } from 'h3'
 
 function getBearerToken(event: H3Event): string {
@@ -15,10 +15,28 @@ function getBearerToken(event: H3Event): string {
   return token
 }
 
+// checkUser/requireOwner both funnel through this per request - several
+// endpoints (plan/entry PUT, DELETE, single-entry GET) call both in the same
+// request, so without caching verifyIdToken's CPU-bound crypto already ran
+// twice per request there. TTL is well under the token's own ~1hr lifetime;
+// only successes are cached (a bad/expired token retries every time, so a
+// legitimate retry right after a refresh is never masked).
+const TOKEN_CACHE_TTL_MS = 60_000
+const tokenCache = new Map<string, { decoded: DecodedIdToken; expiresAt: number }>()
+
 async function verifyRequest(event: H3Event) {
   const token = getBearerToken(event)
+
+  const cached = tokenCache.get(token)
+  if (cached) {
+    if (cached.expiresAt > Date.now()) return cached.decoded
+    tokenCache.delete(token)
+  }
+
   try {
-    return await getAuth().verifyIdToken(token)
+    const decoded = await getAuth().verifyIdToken(token)
+    tokenCache.set(token, { decoded, expiresAt: Date.now() + TOKEN_CACHE_TTL_MS })
+    return decoded
   } catch (err) {
     throw createError({ statusCode: 401, statusMessage: 'Not Authorized' })
   }

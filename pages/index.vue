@@ -59,31 +59,27 @@ const passageStore = usePassageStore()
 
 const date = ref(new Date())
 
-// SSR: preload today's passage so the rendered HTML already contains it on
-// first paint (folds in what used to be the root nuxtServerInit's job).
-await useAsyncData('home-todays-passage', async () => {
-  await passageStore.refreshPassage()
-  return true
-})
-
-// SSR: preload the user's journal entries (for the streak card) if logged in.
-// Non-fatal on failure - the home page must still render for the passage.
-// `watch` re-runs this on the client once Firebase's async onIdTokenChanged
+// SSR: preload today's passage (first paint) and the user's entry dates (for
+// the streak card) concurrently - these are independent fetches, no reason to
+// waterfall one after the other.
+// The dates fetch is a tiny, undecrypted payload, not the full entry list
+// (see stores/journal.ts's fetchEntryDates). Non-fatal on failure - the home
+// page must still render for the passage.
+// `watch` re-runs it on the client once Firebase's async onIdTokenChanged
 // flips isAuthenticated to true - otherwise, when the SSR pass renders
 // unauthenticated (e.g. an expired jwt cookie), the streak would stay empty
 // until a manual refresh since useAsyncData doesn't re-run after hydration.
-const { refresh: refreshEntries } = await useAsyncData('home-qt-entries', async () => {
-  if (!userStore.isAuthenticated) return null
-  try {
-    const entries = await authFetch('/api/qtJournalEntries', {
-      params: { creatorEmail: userStore.userID }
-    })
-    journalStore.storeAllQTEntries(entries)
-  } catch (e) {
-    // ignore
-  }
-  return true
-}, { watch: [() => userStore.isAuthenticated] })
+const [, { refresh: refreshEntries }] = await Promise.all([
+  useAsyncData('home-todays-passage', async () => {
+    await passageStore.refreshPassage()
+    return true
+  }),
+  useAsyncData('home-qt-entries', async () => {
+    if (!userStore.isAuthenticated) return null
+    await journalStore.fetchEntryDates()
+    return true
+  }, { watch: [() => userStore.isAuthenticated] })
+])
 
 // Re-fetches the passage/entries when the local calendar day has actually
 // rolled over, so a tab left open past midnight doesn't keep showing
@@ -109,11 +105,15 @@ function onVisible() {
 let rolloverInterval: ReturnType<typeof setInterval> | undefined
 
 onMounted(() => {
-  // Ensures that after a refresh, the correct passage from the user's chosen
-  // plan is shown (the SSR preload above only knows the org-wide default plan
-  // until auth resolves).
+  // Ensures that once auth resolves, the correct passage from the user's
+  // chosen plan is shown (the SSR preload above only knows the org-wide
+  // default plan until then) - but only refetch if the resolved plan actually
+  // differs from what SSR already used, instead of unconditionally every load.
+  const planBeforeMount = planStore.chosenPlan
   planStore.getPlanChosen().then(() => {
-    passageStore.refreshPassage()
+    if (planStore.chosenPlan !== planBeforeMount) {
+      passageStore.refreshPassage()
+    }
   })
 
   document.addEventListener('visibilitychange', onVisible)

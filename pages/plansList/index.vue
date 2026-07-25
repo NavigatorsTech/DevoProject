@@ -27,8 +27,10 @@ const planStore = usePlanStore()
 const router = useRouter()
 
 const { error: fetchError } = await useAsyncData('plans-list', async () => {
-  await planStore.getPlanChosen()
-  const data = await authFetch('/api/plans')
+  const [, data] = await Promise.all([
+    planStore.getPlanChosen(),
+    authFetch('/api/plans')
+  ])
   planStore.storePlans(data)
   return true
 })

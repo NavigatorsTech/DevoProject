@@ -6,13 +6,19 @@ export function toDayIndex(input: string | Date): number {
   return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000)
 }
 
-function uniqueSortedDays(entries: any[]): number[] {
-  return [...new Set(entries.map((e) => toDayIndex(e.date)))].sort((a, b) => a - b)
+function uniqueSortedDays(dates: (string | Date)[]): number[] {
+  return [...new Set(dates.map((d) => toDayIndex(d)))].sort((a, b) => a - b)
 }
+
+const DEFAULT_PAGE_SIZE = 20
 
 export const useJournalStore = defineStore('journal', {
   state: () => ({
-    qtEntries: [] as any[]
+    qtEntries: [] as any[],
+    // Dates-only mirror of every entry the user has ever written, independent of
+    // qtEntries' pagination - streaks need every day, not just the loaded page.
+    entryDates: [] as (string | Date)[],
+    hasMoreEntries: true
   }),
 
   getters: {
@@ -20,8 +26,13 @@ export const useJournalStore = defineStore('journal', {
     getEntryUsingID: (state) => (id: string) => state.qtEntries.find((e: any) => e._id === id),
     getQTEntriesLength: (state) => state.qtEntries.length,
 
-    getCurrentStreak: (state) => {
-      const days = uniqueSortedDays(state.qtEntries)
+    // Computed once per entryDates change (Pinia caches each getter independently),
+    // then reused by all three streak getters below instead of each recomputing
+    // uniqueSortedDays from scratch.
+    sortedEntryDayIndexes: (state) => uniqueSortedDays(state.entryDates),
+
+    getCurrentStreak(): number {
+      const days = this.sortedEntryDayIndexes
       if (days.length === 0) return 0
 
       const today = toDayIndex(new Date())
@@ -41,8 +52,8 @@ export const useJournalStore = defineStore('journal', {
       return streak
     },
 
-    getLongestStreak: (state) => {
-      const days = uniqueSortedDays(state.qtEntries)
+    getLongestStreak(): number {
+      const days = this.sortedEntryDayIndexes
       if (days.length === 0) return 0
 
       let longest = 1
@@ -58,8 +69,8 @@ export const useJournalStore = defineStore('journal', {
       return longest
     },
 
-    hasJournaledToday: (state) => {
-      const days = uniqueSortedDays(state.qtEntries)
+    hasJournaledToday(): boolean {
+      const days = this.sortedEntryDayIndexes
       if (days.length === 0) return false
       return days[days.length - 1] === toDayIndex(new Date())
     }
@@ -72,7 +83,10 @@ export const useJournalStore = defineStore('journal', {
           method: 'POST',
           body: entrySubmitted
         })
-        this.qtEntries.push(entry)
+        // List is newest-first from the server; unshift keeps a freshly-created
+        // entry visible at the top without a refetch.
+        this.qtEntries.unshift(entry)
+        this.entryDates.push(entry.date)
         return true
       } catch (e) {
         console.error(e)
@@ -80,8 +94,53 @@ export const useJournalStore = defineStore('journal', {
       }
     },
 
-    storeAllQTEntries(entries: any[]) {
+    // Stores the first paginated page from /api/qtJournalEntries (list mode),
+    // which now returns { entries, hasMore } instead of a bare array.
+    storeFirstPage(entries: any[], hasMore: boolean) {
       this.qtEntries = entries
+      this.hasMoreEntries = hasMore
+    },
+
+    appendQTEntries(entries: any[]) {
+      this.qtEntries.push(...entries)
+    },
+
+    // Inserts or replaces a single entry (e.g. from the single-entry detail
+    // fetch) - keeps getEntryUsingID/retrievedEntry working on the detail page
+    // without requiring the paginated list to already contain it.
+    upsertEntry(entry: any) {
+      const idx = this.qtEntries.findIndex((e: any) => e._id === entry._id)
+      if (idx !== -1) {
+        this.qtEntries[idx] = entry
+      } else {
+        this.qtEntries.push(entry)
+      }
+    },
+
+    async loadMore(limit = DEFAULT_PAGE_SIZE) {
+      const userStore = useUserStore()
+      try {
+        const { entries, hasMore } = await authFetch('/api/qtJournalEntries', {
+          params: { creatorEmail: userStore.userID, skip: this.qtEntries.length, limit }
+        })
+        this.appendQTEntries(entries)
+        this.hasMoreEntries = hasMore
+      } catch (e) {
+        console.error(e)
+      }
+    },
+
+    // Cheap dates-only fetch backing the streak getters - independent of
+    // qtEntries' pagination, so streaks always reflect the full history.
+    async fetchEntryDates() {
+      const userStore = useUserStore()
+      try {
+        this.entryDates = await authFetch('/api/qtJournalEntries', {
+          params: { creatorEmail: userStore.userID, mode: 'dates' }
+        }).then((dates: any[]) => dates.map((d) => d.date))
+      } catch (e) {
+        console.error(e)
+      }
     },
 
     async updateEntry(entrySubmitted: any) {
@@ -106,8 +165,19 @@ export const useJournalStore = defineStore('journal', {
 
     async deleteEntry(journalID: string) {
       try {
+        // Capture the date before removing - the entry is always currently
+        // loaded/rendered here, so this is the exact value to drop from
+        // entryDates too (entryDates holds one entry per date, unpaginated).
+        const entry = this.qtEntries.find((e: any) => e._id === journalID)
         await authFetch('/api/qtJournalEntries', { method: 'DELETE', params: { journalID } })
         this.qtEntries = this.qtEntries.filter((e: any) => e._id !== journalID)
+        if (entry) {
+          // Remove exactly one date matching this entry's calendar day. Which
+          // duplicate gets removed doesn't matter for streak correctness - the
+          // getters only care whether at least one entry remains for that day.
+          const idx = this.entryDates.findIndex((d) => toDayIndex(d) === toDayIndex(entry.date))
+          if (idx !== -1) this.entryDates.splice(idx, 1)
+        }
       } catch (e) {
         console.error(e)
       }
@@ -115,6 +185,8 @@ export const useJournalStore = defineStore('journal', {
 
     clearEntries() {
       this.qtEntries = []
+      this.entryDates = []
+      this.hasMoreEntries = true
     }
   }
 })

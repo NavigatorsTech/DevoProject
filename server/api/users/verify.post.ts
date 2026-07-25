@@ -1,8 +1,6 @@
 import { UserModel } from '../../models/User'
-import { PlanModel } from '../../models/Plan'
+import { PlanModel, DEFAULT_PLAN_NAME } from '../../models/Plan'
 import { getEmailFromToken } from '../../utils/auth'
-
-const DEFAULT_PLAN_NAME = '--- Default Nav Plan ---'
 
 // Login/register happen client-side against the Firebase client SDK (email/password
 // and Google both). This endpoint just verifies the resulting idToken and

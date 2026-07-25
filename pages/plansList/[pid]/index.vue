@@ -39,18 +39,15 @@ const id = route.params.pid as string
 const updateDialog = ref(false)
 const PlanEditorComponent = ref()
 
-if (planStore.getPlansSize === 0) {
-  const { error: fetchError } = await useAsyncData(`plan-edit-${id}`, async () => {
-    const data = await authFetch('/api/plans')
-    planStore.storePlans(data)
-    return true
-  })
-  if (fetchError.value) {
-    throw createError({ statusCode: 500, statusMessage: 'Failed to load plan' })
-  }
+// Fetches this one plan directly (with its full passages) rather than relying
+// on the plans-list store, which only ever carries the trimmed list-view
+// projection (no passages - see server/api/plans/index.get.ts).
+const { data: retrievedPlan, error: fetchError } = await useAsyncData(`plan-edit-${id}`, () =>
+  authFetch(`/api/plans/${id}`)
+)
+if (fetchError.value) {
+  throw createError({ statusCode: 500, statusMessage: 'Failed to load plan' })
 }
-
-const retrievedPlan = computed(() => planStore.getPlanUsingID(id))
 
 async function updatePlan() {
   const valid = await PlanEditorComponent.value.checkValidation()
