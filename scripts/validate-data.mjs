@@ -9,6 +9,11 @@
 //   2. Plan.passages deserializes into the expected nested Map-of-Map shape.
 //   3. Every User.planChosen references a Plan that actually exists (no
 //      dangling references).
+//   4. User.email is actually unique and lowercase-normalized - the pre-flight
+//      audit for adding `UserSchema.index({email:1}, {unique:true})`
+//      (server/models/User.ts). Exact duplicates block `createIndex` outright;
+//      mixed-case docs won't block it (unique indexes are case-sensitive) but
+//      are already-unreachable today since every query lowercases first.
 //
 // Usage: node scripts/validate-data.mjs <path-to-ecosystem.config.js>
 //
@@ -145,6 +150,41 @@ async function main() {
     const ok = typeof user.planChosen === 'string' && planIds.has(user.planChosen)
     report(`user ${user.email} planChosen (${user.planChosen})`, ok, ok ? undefined : 'dangling or malformed plan reference')
   }
+
+  // 4. User.email uniqueness pre-flight (for the new unique index) ----------
+  console.log(`\n--- User.email uniqueness pre-flight ---`)
+
+  const missingEmail = users.filter((u) => !u.email || typeof u.email !== 'string')
+  report(
+    'no users with a missing/empty email',
+    missingEmail.length === 0,
+    missingEmail.length === 0 ? undefined : `${missingEmail.length} doc(s): ${missingEmail.map((u) => u._id).join(', ')}`
+  )
+
+  const byExactEmail = new Map()
+  for (const u of users) {
+    if (!u.email) continue
+    const bucket = byExactEmail.get(u.email) ?? []
+    bucket.push(u._id.toString())
+    byExactEmail.set(u.email, bucket)
+  }
+  const exactDuplicates = [...byExactEmail.entries()].filter(([, ids]) => ids.length > 1)
+  report(
+    'no exact-duplicate emails (would block createIndex outright)',
+    exactDuplicates.length === 0,
+    exactDuplicates.length === 0
+      ? undefined
+      : exactDuplicates.map(([email, ids]) => `"${email}" x${ids.length} (${ids.join(', ')})`).join('; ')
+  )
+
+  const mixedCase = users.filter((u) => u.email && u.email !== u.email.toLowerCase())
+  report(
+    'no mixed-case emails (already unreachable today - every query lowercases first)',
+    mixedCase.length === 0,
+    mixedCase.length === 0
+      ? undefined
+      : mixedCase.map((u) => `${u._id}: "${u.email}"`).join('; ')
+  )
 
   await mongoose.connection.close()
 

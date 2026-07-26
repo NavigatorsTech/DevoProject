@@ -47,6 +47,14 @@ export const useUserStore = defineStore('user', {
         case 'auth/invalid-email':
           return "That doesn't look like a valid email address."
         default:
+          // A failed POST /api/users/verify (Firebase sign-in succeeded, but
+          // provisioning the Mongo User doc didn't) throws an ofetch error
+          // shaped { response: { status } }, not a Firebase auth `.code` -
+          // give that its own message rather than the misleading generic one
+          // below, since the person IS actually signed in at this point.
+          if (state.error?.response?.status === 503) {
+            return "You're signed in, but we couldn't finish setting up your account. Please try logging in again."
+          }
           return 'Authentication failed'
       }
     }

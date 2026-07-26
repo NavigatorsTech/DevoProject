@@ -48,11 +48,17 @@ async function verifyRequest(event: H3Event) {
  */
 export async function checkUser(event: H3Event, userEmailID?: string): Promise<string> {
   const decoded = await verifyRequest(event)
-  const email = decoded.email
-  if (!email) {
+  const rawEmail = decoded.email
+  if (!rawEmail) {
     throw createError({ statusCode: 401, statusMessage: 'Not Authorized' })
   }
-  if (userEmailID && email !== userEmailID) {
+  // Firebase preserves whatever casing the account was created with (plausible
+  // for an account signed up on a sibling app sharing this Firebase project);
+  // every schema here stores email lowercased. Normalize once, here, so
+  // requireOwner's compare against a Mongo-loaded creatorEmail actually
+  // matches instead of 403ing the real owner of a mixed-case account.
+  const email = rawEmail.toLowerCase()
+  if (userEmailID && email !== userEmailID.toLowerCase()) {
     throw createError({ statusCode: 401, statusMessage: 'Not Authorized' })
   }
   return email
