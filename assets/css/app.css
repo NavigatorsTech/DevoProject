@@ -1,0 +1,14 @@
+/*
+ * Escape hatches for Vuetify styles that no prop, slot, or `defaults` entry
+ * reaches (see nuxt.config.ts's `vuetify.vuetifyOptions.defaults` for the
+ * cases that *can* be handled that way — prefer that route over adding here).
+ * Keep this file at zero-or-near-zero rules.
+ */
+
+/* VSnackbar.css hardcodes `min-width: 344px` with no media query, so on any
+ * viewport under ~360px the snackbar is wider than the screen and its action
+ * buttons clip off both edges. `min()` keeps the intended 344px everywhere it
+ * fits and falls back to the viewport width below that. */
+.v-snackbar__wrapper {
+  min-width: min(344px, 100%);
+}

@@ -27,7 +27,7 @@ Guidance for Claude Code when working in this repository.
 - `npm run generate` — static site generation.
 - `npm run typecheck` — `nuxt typecheck`.
 
-There are **no tests, no test framework, no linter/prettier config, and no CI test suite** (CI exists — see Deployment below — but it only builds and deploys, it doesn't run tests). Do not assume any of these exist. There is a one-off, read-only **data validation script** (`scripts/validate-data.mjs`) used during the migration to sanity-check production data against the new schema — not a general test suite.
+There are **no tests, no test framework, no linter/prettier config, and no CI test suite** (CI exists — see Deployment below — but it only builds and deploys, it doesn't run tests). Do not assume any of these exist. There is a one-off, read-only **data validation script** (`scripts/validate-data.mjs`) used during the migration to sanity-check production data against the new schema — not a general test suite. There's also `scripts/mobile-overflow-check.js`, a paste-into-DevTools-console snippet (not a Node script) for manually checking mobile-viewport overflow/wrap bugs — see its header comment for usage.
 
 ## Layout (Nuxt 4 conventions)
 

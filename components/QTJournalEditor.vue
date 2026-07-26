@@ -9,7 +9,11 @@
             :reference="entryReference"
           />
         </v-col>
-        <v-col>
+        <!-- Explicit cols, matching the Passage col's cols="12" md="7" sibling.
+             Behaviorally identical to the previous bare <v-col> (which got
+             100% at xs and 5/12 at md purely via `flex: 1 0 0%` fallthrough) -
+             this just makes the intent explicit instead of accidental. -->
+        <v-col cols="12" md="5">
           <v-row>
             <v-col>
               <v-text-field v-model="entryTitle" label="Title" :rules="titleRules" required />

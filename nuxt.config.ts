@@ -25,6 +25,11 @@ export default defineNuxtConfig({
     'nuxt-gtag'
   ],
 
+  // Deliberately the only global stylesheet in the app (see the file itself for
+  // why it exists at all) — everything else is Vuetify props/defaults/utility
+  // classes. Keep it at zero-or-near-zero rules.
+  css: ['~/assets/css/app.css'],
+
   // Theme is dark-mode-only (matches current production behavior — see FEATURES.md §8).
   // The light palette that existed in the Nuxt 2 config was dead code and is intentionally
   // not carried forward.
@@ -47,6 +52,27 @@ export default defineNuxtConfig({
         // "comfortable" via the global default above).
         VBtn: {
           density: 'default'
+        },
+        // Vuetify ships these four with `white-space: nowrap; overflow: hidden;
+        // text-overflow: ellipsis` (VCard.css, VListItem.css) — on narrow screens
+        // that silently *truncates* content (a plan name, a passage reference)
+        // instead of wrapping it, invisibly. A `class` set here is concatenated
+        // with, not overridden by, any local class (see Vuetify's
+        // composables/defaults.js), so this is purely additive and doesn't
+        // clobber existing per-component classes.
+        // NB: deliberately NOT touching VLabel here — it backs every text
+        // field's floating label, and wrapping it breaks that transform app-wide.
+        VCardTitle: {
+          class: 'text-wrap'
+        },
+        VCardSubtitle: {
+          class: 'text-wrap'
+        },
+        VListItemTitle: {
+          class: 'text-wrap'
+        },
+        VListItemSubtitle: {
+          class: 'text-wrap'
         }
       },
       theme: {

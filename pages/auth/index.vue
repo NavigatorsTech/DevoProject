@@ -24,9 +24,8 @@
           />
         </v-card-text>
         <v-divider />
-        <v-card-actions>
+        <v-card-actions class="flex-wrap justify-space-between">
           <v-btn color="success" variant="elevated" @click="register">Register</v-btn>
-          <v-spacer />
           <v-btn color="info" variant="elevated" @click="login">Login</v-btn>
         </v-card-actions>
         <v-divider />
@@ -43,7 +42,9 @@
     </div>
     <v-snackbar v-model="snack" :timeout="4000" :color="snackColor">
       {{ snackText }}
-      <v-btn variant="text" @click="snack = false">Close</v-btn>
+      <template v-slot:actions>
+        <v-btn variant="text" @click="snack = false">Close</v-btn>
+      </template>
     </v-snackbar>
   </div>
 </template>

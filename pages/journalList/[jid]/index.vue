@@ -11,7 +11,7 @@
       :draftKey="'qtDraft:edit:' + id"
       @draft-restored="onDraftRestored"
     />
-    <div class="d-flex flex-wrap ga-2 mt-4">
+    <div class="d-flex flex-column flex-sm-row ga-2 mt-4">
       <v-btn color="warning" variant="elevated" @click="cancel">Cancel</v-btn>
       <v-btn color="primary" variant="elevated" @click="copyContents">Share</v-btn>
       <v-dialog v-model="updateDialog" persistent max-width="290">
@@ -21,8 +21,7 @@
         <v-card>
           <v-card-title class="text-h5">Just to be sure...</v-card-title>
           <v-card-text>Are you sure you would like to update this entry?</v-card-text>
-          <v-card-actions>
-            <v-spacer />
+          <v-card-actions class="flex-wrap justify-end">
             <v-btn color="warning" variant="text" @click="updateDialog = false">Cancel</v-btn>
             <v-btn color="success" variant="text" @click="updateEntry(); updateDialog = false">Yes</v-btn>
           </v-card-actions>
@@ -36,8 +35,7 @@
         <v-card>
           <v-card-title class="text-h5">Just to be sure...</v-card-title>
           <v-card-text>Are you sure you would like to delete this entry?</v-card-text>
-          <v-card-actions>
-            <v-spacer />
+          <v-card-actions class="flex-wrap justify-end">
             <v-btn color="warning" variant="text" @click="deleteDialog = false">Cancel</v-btn>
             <v-btn color="success" variant="text" to="/journalList" @click="deleteEntry()">Yes</v-btn>
           </v-card-actions>

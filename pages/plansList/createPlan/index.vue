@@ -1,7 +1,7 @@
 <template>
   <div>
     <PlanEditor ref="PlanEditorComponent" />
-    <div class="d-flex flex-wrap ga-2 mt-4">
+    <div class="d-flex flex-column flex-sm-row ga-2 mt-4">
       <v-btn color="warning" variant="elevated" @click="cancelPlan">Cancel</v-btn>
       <v-btn color="success" variant="elevated" @click="submitPlan">Create Plan</v-btn>
     </div>

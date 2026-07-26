@@ -9,7 +9,7 @@
       :draftSameDayOnly="true"
       @draft-restored="onDraftRestored"
     />
-    <div class="d-flex flex-wrap ga-2 mt-4">
+    <div class="d-flex flex-column flex-sm-row ga-2 mt-4">
       <v-btn color="warning" variant="elevated" @click="cancel">Cancel</v-btn>
       <v-btn color="primary" variant="elevated" @click="copyContents">Share</v-btn>
       <v-btn color="success" variant="elevated" @click="submit">Save</v-btn>

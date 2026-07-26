@@ -18,17 +18,20 @@
         />
       </v-col>
     </v-row>
+    <!-- `cols="6" sm="2"` used to get *narrower* at the sm breakpoint (from 50%
+         down to 2/12 ~= 100px) - exactly backwards for a field that has to fit
+         a `prepend-icon` plus "September". Full-width on the smallest phones,
+         settling to a compact 2-up once there's room at sm/md. -->
     <v-row>
-      <v-col cols="6" sm="2">
+      <v-col cols="12" sm="4" md="2">
         <v-select
           v-model="selectedMonthNum"
           :items="monthOptions"
           label="Month"
           density="compact"
-          prepend-icon="mdi-calendar-month"
         />
       </v-col>
-      <v-col cols="6" sm="2">
+      <v-col cols="12" sm="4" md="2">
         <v-select v-model="selectedYear" :items="yearOptions" label="Year" density="compact" />
       </v-col>
     </v-row>
@@ -58,8 +61,7 @@
                     @can-advance="(v) => (pickerCanAdvance[row.day] = v)"
                   />
                 </v-card-text>
-                <v-card-actions>
-                  <v-spacer />
+                <v-card-actions class="flex-wrap justify-end">
                   <v-btn color="warning" variant="text" @click="cancelEdit(row.day)">Cancel</v-btn>
                   <v-btn v-if="pickerCanAdvance[row.day]" color="indigo" variant="text" @click="pickerRefs[row.day]?.advance()">
                     Next

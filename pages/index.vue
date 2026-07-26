@@ -39,11 +39,21 @@
           />
         </v-col>
       </v-row>
+      <!-- Inside the container (not a sibling of it) so this inherits the
+           gutter instead of running edge-to-edge; stacks full-width below
+           600px since `.v-btn` can neither shrink nor wrap its label. Labels
+           shortened too - "Log in to journal your thoughts!" uppercases to
+           ~344px of un-shrinkable content, wider than a 320px viewport even
+           full-width, so stacking alone couldn't have saved the original copy. -->
+      <v-row justify="center">
+        <v-col cols="12" md="10">
+          <div class="d-flex flex-column flex-sm-row justify-center ga-2 mt-4 mb-4">
+            <v-btn v-if="isAuthenticated" to="/journalList/createEntry" exact color="primary" variant="elevated">Write your thoughts</v-btn>
+            <v-btn v-if="!isAuthenticated" to="/auth" exact color="primary" variant="elevated">Log in to journal</v-btn>
+          </div>
+        </v-col>
+      </v-row>
     </v-container>
-    <div class="d-flex justify-center mt-4 mb-4">
-      <v-btn v-if="isAuthenticated" to="/journalList/createEntry" exact color="primary" variant="elevated">Write down your thoughts</v-btn>
-      <v-btn v-if="!isAuthenticated" to="/auth" exact color="primary" variant="elevated">Log in to journal your thoughts!</v-btn>
-    </div>
   </div>
 </template>
 

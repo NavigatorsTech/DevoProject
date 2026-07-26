@@ -22,12 +22,15 @@
       </v-list>
     </div>
     <div v-else-if="currentStep === 3">
-      <v-label>Starting Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[0] }}</v-label>
+      <!-- `.v-label` ships nowrap+ellipsis (same as a field's floating label);
+           these long "Starting/Ending Verse from <book> Chapter <n>" strings
+           silently truncated in a narrow dialog without this. -->
+      <v-label class="text-wrap">Starting Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[0] }}</v-label>
       <v-select v-model="sV" :items="verseList(chosenChapter[0])" variant="outlined" density="compact" />
-      <v-label v-if="chosenChapter.length > 1">
+      <v-label v-if="chosenChapter.length > 1" class="text-wrap">
         Ending Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[chosenChapter.length - 1] }}
       </v-label>
-      <v-label v-else>Ending Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[0] }}</v-label>
+      <v-label v-else class="text-wrap">Ending Verse from {{ chosenBook?.bookName }} Chapter {{ chosenChapter[0] }}</v-label>
       <v-select
         v-if="chosenChapter.length > 1"
         v-model="eV"
@@ -152,7 +155,13 @@ defineExpose({ reset, advance })
 
 <style scoped>
 .sList {
-  height: 60vh;
+  /* `dvh` (not `vh`) accounts for mobile browser chrome collapsing/expanding
+     around the URL bar; `max-height` (not a fixed `height`) avoids empty
+     scroll space for short lists (e.g. 1-chapter books like Obadiah). This
+     list already sits inside a dialog capped at `calc(100% - 48px)`, so the
+     old fixed 60vh could exceed the visible area and create a double scroll
+     region. */
+  max-height: 50dvh;
   overflow-y: auto;
 }
 </style>
