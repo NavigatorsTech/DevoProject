@@ -1,5 +1,6 @@
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth'
 import { getHeader, createError, type H3Event } from 'h3'
+import { UserModel } from '../models/User'
 
 function getBearerToken(event: H3Event): string {
   const header = getHeader(event, 'authorization')
@@ -45,6 +46,16 @@ async function verifyRequest(event: H3Event) {
 /**
  * Verifies the request's Bearer idToken. If userEmailID is given, also requires
  * the token's email to match it. Returns the verified email.
+ *
+ * Also enforces email verification, but only for identities qtapp itself
+ * registered (server/api/users/register.post.ts sets pendingVerification:true
+ * at that exact moment, and nowhere else) - this app shares one Firebase
+ * project with sibling apps, so a pre-existing, possibly-unverified account
+ * from one of those logging into qtapp for the first time must NOT be caught
+ * by this, and neither must any of qtapp's own pre-existing accounts (none of
+ * which have this field at all). That's why this is keyed on an explicit flag
+ * rather than "does a User doc exist yet" - the latter can't tell those two
+ * populations apart.
  */
 export async function checkUser(event: H3Event, userEmailID?: string): Promise<string> {
   const decoded = await verifyRequest(event)
@@ -61,6 +72,17 @@ export async function checkUser(event: H3Event, userEmailID?: string): Promise<s
   if (userEmailID && email !== userEmailID.toLowerCase()) {
     throw createError({ statusCode: 401, statusMessage: 'Not Authorized' })
   }
+
+  // Only ever costs a Mongo lookup for the rare unverified case - verified
+  // users (all Google sign-ins, every pre-existing account, anyone who's
+  // already clicked their link) skip it entirely.
+  if (!decoded.email_verified) {
+    const existing = await UserModel.findOne({ email }).select('pendingVerification').lean()
+    if (existing?.pendingVerification) {
+      throw createError({ statusCode: 403, statusMessage: 'Email not verified' })
+    }
+  }
+
   return email
 }
 

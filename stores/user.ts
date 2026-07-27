@@ -1,6 +1,7 @@
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
@@ -13,6 +14,11 @@ interface UserState {
   userID: string | null
   error: any
 }
+
+// Shared by email verification (below) and password reset
+// (pages/auth/index.vue) - both are Firebase action-code emails whose
+// "continue" link should land back on the app.
+export const AUTH_CONTINUE_URL = 'https://qt.navigators.tech'
 
 function firebaseAuth(): Auth {
   return useNuxtApp().$firebaseAuth as Auth
@@ -47,13 +53,16 @@ export const useUserStore = defineStore('user', {
         case 'auth/invalid-email':
           return "That doesn't look like a valid email address."
         default:
-          // A failed POST /api/users/verify (Firebase sign-in succeeded, but
-          // provisioning the Mongo User doc didn't) throws an ofetch error
+          // Failed POST /api/users/verify calls (Firebase sign-in succeeded,
+          // but the app-level step after it didn't) throw an ofetch error
           // shaped { response: { status } }, not a Firebase auth `.code` -
-          // give that its own message rather than the misleading generic one
-          // below, since the person IS actually signed in at this point.
+          // give those their own messages rather than the misleading generic
+          // one below, since the person IS actually signed in at this point.
           if (state.error?.response?.status === 503) {
             return "You're signed in, but we couldn't finish setting up your account. Please try logging in again."
+          }
+          if (state.error?.response?.status === 403) {
+            return 'Please verify your email before logging in - check your inbox (and spam folder) for the verification link we sent you.'
           }
           return 'Authentication failed'
       }
@@ -82,22 +91,56 @@ export const useUserStore = defineStore('user', {
       try {
         if (authData.isLogin) {
           await signInWithEmailAndPassword(firebaseAuth(), authData.id, authData.pwd)
+          // Attach the just-obtained token directly to this one call - cookie/Pinia
+          // sync happens via onIdTokenChanged (the firebase-token-sync plugin),
+          // triggered by the sign-in above, not yet by the time we get here.
+          const idToken = await firebaseAuth().currentUser!.getIdToken()
+          await $fetch('/api/users/verify', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${idToken}` }
+          })
         } else {
-          await createUserWithEmailAndPassword(firebaseAuth(), authData.id, authData.pwd)
+          const cred = await createUserWithEmailAndPassword(firebaseAuth(), authData.id, authData.pwd)
+          await sendEmailVerification(cred.user, { url: AUTH_CONTINUE_URL })
+          // Deliberately not calling /api/users/verify here - checkUser would
+          // reject it anyway (fresh account, not verified yet), and it's
+          // pointless noise right after a successful signup. This is instead
+          // what marks the account as needing verification -
+          // server/api/users/register.post.ts is the only place that happens.
+          const idToken = await cred.user.getIdToken()
+          await $fetch('/api/users/register', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${idToken}` }
+          })
         }
-
-        // Attach the just-obtained token directly to this one call - cookie/Pinia
-        // sync happens via onIdTokenChanged (the firebase-token-sync plugin),
-        // triggered by the sign-in/creation above, not yet by the time we get here.
-        const idToken = await firebaseAuth().currentUser!.getIdToken()
-        await $fetch('/api/users/verify', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${idToken}` }
-        })
       } catch (e) {
         this.error = e
         console.error(e)
       }
+    },
+
+    /**
+     * The "I've verified - continue" action on pages/auth/verify-email. Firebase's
+     * `reload()` refreshes the local user profile's `emailVerified` flag, but the
+     * ID token's `email_verified` *claim* - what checkUser actually reads - stays
+     * stale until explicitly force-refreshed; without that, this would still
+     * 403 immediately after a genuine verification. Returns true once the
+     * account is confirmed usable (provisioned server-side), false if it's
+     * still not verified.
+     */
+    async completeVerification(): Promise<boolean> {
+      const user = firebaseAuth().currentUser
+      if (!user) return false
+
+      await user.reload()
+      if (!user.emailVerified) return false
+
+      const idToken = await user.getIdToken(true)
+      await $fetch('/api/users/verify', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${idToken}` }
+      })
+      return true
     },
 
     clearError() {

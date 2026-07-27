@@ -51,6 +51,7 @@
 
 <script setup lang="ts">
 import { sendPasswordResetEmail, type Auth } from 'firebase/auth'
+import { AUTH_CONTINUE_URL } from '~/stores/user'
 
 const userStore = useUserStore()
 
@@ -61,6 +62,10 @@ const password = ref('')
 const snack = ref(false)
 const snackColor = ref('')
 const snackText = ref('')
+// Set right before a register attempt so the isAuthenticated watcher below
+// knows to send them to the "check your email" page instead of home - login
+// (and Google sign-in, which never sets this) still goes straight to '/'.
+const justRegistered = ref(false)
 
 const emailRules = [
   (v: string) => !!v || 'Please enter an email address', // !! converts to boolean
@@ -72,6 +77,7 @@ function login() {
 }
 
 function register() {
+  justRegistered.value = true
   userStore.authenticateUser({ isLogin: false, id: email.value, pwd: password.value })
 }
 
@@ -82,7 +88,7 @@ function loginWithGoogle() {
 async function passwordReset() {
   try {
     const auth = useNuxtApp().$firebaseAuth as Auth
-    await sendPasswordResetEmail(auth, email.value, { url: 'https://qt.navigators.tech' })
+    await sendPasswordResetEmail(auth, email.value, { url: AUTH_CONTINUE_URL })
     snack.value = true
     snackColor.value = 'success'
     snackText.value = 'Password Reset Email Sent!'
@@ -106,7 +112,7 @@ watch(
   () => userStore.isAuthenticated,
   (isAuthenticated) => {
     if (isAuthenticated) {
-      navigateTo('/')
+      navigateTo(justRegistered.value ? '/auth/verify-email' : '/')
     }
   }
 )

@@ -5,11 +5,21 @@ const { Schema, model, models } = mongoose
 export interface UserDocument {
   email: string
   planChosen: string
+  // Set to true in exactly one place: server/api/users/register.post.ts, the
+  // instant qtapp's own registration flow creates the Firebase account -
+  // never set anywhere else, and cleared permanently by
+  // server/api/users/verify.post.ts once verified. Deliberately no schema
+  // default: absent (not false) on every account qtapp didn't itself just
+  // register, including all pre-existing docs and any sibling-app account's
+  // first qtapp login (this app shares one Firebase project with other
+  // Navigators apps). server/utils/auth.ts's checkUser is what enforces this.
+  pendingVerification?: boolean
 }
 
 const UserSchema = new Schema<UserDocument>({
   email: { type: String, required: true, lowercase: true, trim: true },
-  planChosen: { type: String, required: true, trim: true }
+  planChosen: { type: String, required: true, trim: true },
+  pendingVerification: { type: Boolean }
 })
 
 // `unique` is load-bearing, not hygiene: it's what makes concurrent
