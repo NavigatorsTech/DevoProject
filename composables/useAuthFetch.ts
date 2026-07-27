@@ -42,3 +42,26 @@ export async function authFetch<T = any>(url: string, opts: Record<string, any> 
     throw err
   }
 }
+
+/**
+ * checkUser's verification gate (server/utils/auth.ts) throws this - distinct
+ * from a plain 401, since the person IS authenticated, just not verified yet,
+ * and distinct from requireOwner's 403 (statusMessage "Forbidden"), which must
+ * NOT redirect to the verify-email page. Pages that convert ANY useAsyncData
+ * error into their own generic createError (several do, to show one clean
+ * message instead of a raw fetch failure) need to check this FIRST and
+ * navigate instead - see those pages for why authFetch can't just handle this
+ * by itself: a throw from deep inside it is silently swallowed into
+ * useAsyncData's error ref either way, so whichever code checks that ref is
+ * the only place that can reliably decide what happens next.
+ */
+export function isEmailNotVerifiedError(err: any): boolean {
+  if (!err) return false
+  // Checks both shapes: a raw ofetch FetchError (.response.status/.data...)
+  // caught directly, and the NuxtError useAsyncData normalizes thrown errors
+  // into for its `error` ref (.statusCode/.statusMessage directly) - callers
+  // pass either, so this can't assume just one.
+  const statusCode = err.statusCode ?? err.response?.status
+  const statusMessage = err.statusMessage ?? err.data?.statusMessage ?? err.data?.message
+  return statusCode === 403 && statusMessage === 'Email not verified'
+}

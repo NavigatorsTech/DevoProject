@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { sendPasswordResetEmail, type Auth } from 'firebase/auth'
-import { AUTH_CONTINUE_URL } from '~/stores/user'
+import { authContinueUrl } from '~/stores/user'
 
 const userStore = useUserStore()
 
@@ -76,9 +76,19 @@ function login() {
   userStore.authenticateUser({ isLogin: true, id: email.value, pwd: password.value })
 }
 
-function register() {
+async function register() {
   justRegistered.value = true
-  userStore.authenticateUser({ isLogin: false, id: email.value, pwd: password.value })
+  await userStore.authenticateUser({ isLogin: false, id: email.value, pwd: password.value })
+  if (userStore.errorOccured) {
+    // sendEmailVerification or the follow-up /api/users/register call failed
+    // (Firebase account creation itself may still have succeeded) - reset so
+    // the isAuthenticated watcher below falls back to its normal '/' behavior
+    // rather than sending them to a "check your email" page when no email
+    // was actually sent. The error snackbar (watched separately) shows why.
+    justRegistered.value = false
+    return
+  }
+  navigateTo('/auth/verify-email')
 }
 
 function loginWithGoogle() {
@@ -88,7 +98,7 @@ function loginWithGoogle() {
 async function passwordReset() {
   try {
     const auth = useNuxtApp().$firebaseAuth as Auth
-    await sendPasswordResetEmail(auth, email.value, { url: AUTH_CONTINUE_URL })
+    await sendPasswordResetEmail(auth, email.value, { url: authContinueUrl() })
     snack.value = true
     snackColor.value = 'success'
     snackText.value = 'Password Reset Email Sent!'
@@ -111,8 +121,14 @@ async function validate() {
 watch(
   () => userStore.isAuthenticated,
   (isAuthenticated) => {
-    if (isAuthenticated) {
-      navigateTo(justRegistered.value ? '/auth/verify-email' : '/')
+    // Deliberately skips entirely while justRegistered is true, rather than
+    // branching on it to decide the destination: isAuthenticated can flip
+    // true (via onIdTokenChanged, as soon as Firebase's SDK notices the new
+    // account) well before register()'s own await chain finishes, or fails,
+    // below - register() alone owns navigation for that case once it knows
+    // the real outcome, so this watcher must not race it.
+    if (isAuthenticated && !justRegistered.value) {
+      navigateTo('/')
     }
   }
 )

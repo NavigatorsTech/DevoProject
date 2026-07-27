@@ -80,7 +80,9 @@ const { data: passageData, error: fetchError } = await useAsyncData(`journal-ent
   return data.passages[0]
 })
 
-if (fetchError.value) {
+if (isEmailNotVerifiedError(fetchError.value)) {
+  await navigateTo('/auth/verify-email')
+} else if (fetchError.value) {
   throw createError({ statusCode: 500, statusMessage: 'Failed to load journal entry' })
 }
 

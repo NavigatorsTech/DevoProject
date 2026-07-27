@@ -139,6 +139,14 @@ export const useJournalStore = defineStore('journal', {
           params: { creatorEmail: userStore.userID, mode: 'dates' }
         }).then((dates: any[]) => dates.map((d) => d.date))
       } catch (e) {
+        // Swallowed in general - both callers treat the streak/dates fetch as
+        // non-fatal, the rest of their page must still render. The one
+        // exception: a still-pending-verification account needs its caller's
+        // useAsyncData `error` ref to actually see this, so it can redirect
+        // to the verify-email page instead of silently rendering as if
+        // nothing happened - rethrow only that one, narrowly, rather than
+        // making this non-fatal-on-failure behavior fatal in general.
+        if (isEmailNotVerifiedError(e)) throw e
         console.error(e)
       }
     },

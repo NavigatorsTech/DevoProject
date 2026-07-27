@@ -79,7 +79,7 @@ const date = ref(new Date())
 // flips isAuthenticated to true - otherwise, when the SSR pass renders
 // unauthenticated (e.g. an expired jwt cookie), the streak would stay empty
 // until a manual refresh since useAsyncData doesn't re-run after hydration.
-const [, { refresh: refreshEntries }] = await Promise.all([
+const [, { error: entriesError, refresh: refreshEntries }] = await Promise.all([
   useAsyncData('home-todays-passage', async () => {
     await passageStore.refreshPassage()
     return true
@@ -90,6 +90,15 @@ const [, { refresh: refreshEntries }] = await Promise.all([
     return true
   }, { watch: [() => userStore.isAuthenticated] })
 ])
+
+// The dates fetch above is deliberately non-fatal on failure in general (see
+// the comment above it - the home page renders regardless), but a still-
+// pending-verification account is the one failure mode that needs to
+// interrupt that: otherwise this is the page an unverified person lands on
+// first, and it would otherwise just quietly render as if everything's fine.
+if (isEmailNotVerifiedError(entriesError.value)) {
+  await navigateTo('/auth/verify-email')
+}
 
 // Re-fetches the passage/entries when the local calendar day has actually
 // rolled over, so a tab left open past midnight doesn't keep showing

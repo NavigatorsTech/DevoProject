@@ -39,7 +39,9 @@ const { error: fetchError } = await useAsyncData('journal-list-entries', async (
   return true
 })
 
-if (fetchError.value) {
+if (isEmailNotVerifiedError(fetchError.value)) {
+  await navigateTo('/auth/verify-email')
+} else if (fetchError.value) {
   throw createError({ statusCode: 500, statusMessage: 'Failed to load journal entries' })
 }
 

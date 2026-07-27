@@ -35,7 +35,9 @@ const { error: fetchError } = await useAsyncData('plans-list', async () => {
   return true
 })
 
-if (fetchError.value) {
+if (isEmailNotVerifiedError(fetchError.value)) {
+  await navigateTo('/auth/verify-email')
+} else if (fetchError.value) {
   throw createError({ statusCode: 500, statusMessage: 'Failed to load plans' })
 }
 

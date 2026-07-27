@@ -17,8 +17,18 @@ interface UserState {
 
 // Shared by email verification (below) and password reset
 // (pages/auth/index.vue) - both are Firebase action-code emails whose
-// "continue" link should land back on the app.
-export const AUTH_CONTINUE_URL = 'https://qt.navigators.tech'
+// "continue" link should land back on the app. Derived from the current
+// origin rather than hardcoded, so this actually works in every environment:
+// dev and prod talk to DIFFERENT Firebase projects, each with its own
+// authorized-domains allowlist, and Firebase rejects sendEmailVerification/
+// sendPasswordResetEmail outright (auth/unauthorized-continue-uri) if the
+// continue URL isn't on that project's list - a URL that's valid in
+// production is never valid for local dev's project, and vice versa. Client
+// -only by construction (both call sites are user-triggered actions that
+// never run during SSR), so `window` is always safe here.
+export function authContinueUrl(): string {
+  return window.location.origin
+}
 
 function firebaseAuth(): Auth {
   return useNuxtApp().$firebaseAuth as Auth
@@ -101,7 +111,7 @@ export const useUserStore = defineStore('user', {
           })
         } else {
           const cred = await createUserWithEmailAndPassword(firebaseAuth(), authData.id, authData.pwd)
-          await sendEmailVerification(cred.user, { url: AUTH_CONTINUE_URL })
+          await sendEmailVerification(cred.user, { url: authContinueUrl() })
           // Deliberately not calling /api/users/verify here - checkUser would
           // reject it anyway (fresh account, not verified yet), and it's
           // pointless noise right after a successful signup. This is instead

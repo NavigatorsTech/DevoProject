@@ -44,7 +44,9 @@ const PlanEditorComponent = ref()
 const { data: retrievedPlan, error: fetchError } = await useAsyncData(`plan-edit-${id}`, () =>
   authFetch(`/api/plans/${id}`)
 )
-if (fetchError.value) {
+if (isEmailNotVerifiedError(fetchError.value)) {
+  await navigateTo('/auth/verify-email')
+} else if (fetchError.value) {
   throw createError({ statusCode: 500, statusMessage: 'Failed to load plan' })
 }
 

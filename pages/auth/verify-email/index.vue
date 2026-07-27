@@ -50,12 +50,21 @@ function firebaseUser() {
 }
 
 onMounted(async () => {
-  const user = firebaseUser()
-  if (!user) {
+  // Checked via the cookie-backed store, not the live Firebase client object
+  // directly: Firebase's client SDK restores its session asynchronously, and
+  // right after a fresh navigation here it may not have finished yet even
+  // though the person genuinely is signed in (cookies already confirm it,
+  // via the check-auth middleware's rehydration) - checking `currentUser`
+  // first bounced people straight back to /auth before it had a chance to
+  // populate.
+  if (!userStore.isAuthenticated) {
     navigateTo('/auth')
     return
   }
-  email.value = user.email ?? ''
+  email.value = userStore.userID ?? ''
+
+  const user = firebaseUser()
+  if (!user) return // still initializing - resend/continue work once it has
 
   // Covers landing here fresh (e.g. via a bookmark, or after clicking the
   // email's own "continue" link in a new tab) with an already-verified
