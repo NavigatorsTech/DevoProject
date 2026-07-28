@@ -74,6 +74,13 @@ export const usePlanStore = defineStore('plan', {
         })
         this.chosenPlan = data.planChosen
       } catch (e) {
+        // Swallowed in general (callers render regardless of whether the
+        // chosen plan loaded), except a still-pending-verification account -
+        // see stores/journal.ts's fetchEntryDates for the same rationale.
+        // This is also the on-mount gate for the two action-only pages
+        // (journalList/createEntry, plansList/createPlan) that have no
+        // useAsyncData of their own to surface this through.
+        if (isEmailNotVerifiedError(e)) throw e
         console.error(e)
       }
     },

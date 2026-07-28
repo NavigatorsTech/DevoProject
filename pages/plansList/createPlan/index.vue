@@ -16,6 +16,21 @@ const router = useRouter()
 
 const PlanEditorComponent = ref()
 
+// This page has no data of its own to fetch on load - getPlanChosen()'s
+// result isn't used here, it's called purely as a cheap authenticated probe
+// so a still-pending-verification account gets redirected before it ever
+// sees the editor, matching every other protected page's gate. See
+// stores/plan.ts's getPlanChosen for why this is the one that surfaces it.
+onMounted(async () => {
+  try {
+    await planStore.getPlanChosen()
+  } catch (e) {
+    if (isEmailNotVerifiedError(e)) {
+      await navigateTo('/auth/verify-email')
+    }
+  }
+})
+
 async function submitPlan() {
   const valid = await PlanEditorComponent.value.checkValidation()
   if (!valid) return

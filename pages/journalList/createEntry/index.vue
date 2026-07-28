@@ -42,11 +42,21 @@ const snackColor = ref('')
 const snackText = ref('')
 const showDiscardDraftButton = ref(false)
 
-onMounted(() => {
-  // Ensures that after a refresh, the correct passage from plan is shown
-  planStore.getPlanChosen().then(() => {
-    passageStore.refreshPassage()
-  })
+onMounted(async () => {
+  // Ensures that after a refresh, the correct passage from plan is shown.
+  // Also doubles as this page's verification gate - unlike the list pages,
+  // this one has no useAsyncData of its own for isEmailNotVerifiedError to
+  // surface through, so it's checked explicitly here instead.
+  try {
+    await planStore.getPlanChosen()
+    await passageStore.refreshPassage()
+  } catch (e) {
+    if (isEmailNotVerifiedError(e)) {
+      await navigateTo('/auth/verify-email')
+      return
+    }
+    console.error(e)
+  }
 })
 
 const getPassageContents = computed(() => passageStore.todaysPassage)
