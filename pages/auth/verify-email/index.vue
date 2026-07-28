@@ -30,6 +30,7 @@
 
 <script setup lang="ts">
 import { sendEmailVerification } from 'firebase/auth'
+import { authContinueUrl } from '~/stores/user'
 
 // Rehydration only, matching pages/index.vue's pattern - deliberately no
 // login-check, since someone who just registered but hasn't verified yet is
@@ -80,7 +81,7 @@ async function resend() {
   if (!user) return
   resending.value = true
   try {
-    await sendEmailVerification(user)
+    await sendEmailVerification(user, { url: authContinueUrl('/auth/verify-email') })
     snack.value = true
     snackColor.value = 'success'
     snackText.value = 'Verification email sent again.'

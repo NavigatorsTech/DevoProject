@@ -26,8 +26,15 @@ interface UserState {
 // production is never valid for local dev's project, and vice versa. Client
 // -only by construction (both call sites are user-triggered actions that
 // never run during SSR), so `window` is always safe here.
-export function authContinueUrl(): string {
-  return window.location.origin
+//
+// The shared Navigators email-action handler (a separate static page, not
+// part of this app) reads this as `continueUrl` and offers it as a "back to
+// the app" link once the action succeeds - `path` lets a caller land
+// somewhere more useful than the bare origin. Verification uses
+// /auth/verify-email so its own graduation logic runs immediately; password
+// reset has no such page, so it stays at the origin.
+export function authContinueUrl(path?: string): string {
+  return path ? new URL(path, window.location.origin).toString() : window.location.origin
 }
 
 function firebaseAuth(): Auth {
@@ -111,7 +118,7 @@ export const useUserStore = defineStore('user', {
           })
         } else {
           const cred = await createUserWithEmailAndPassword(firebaseAuth(), authData.id, authData.pwd)
-          await sendEmailVerification(cred.user, { url: authContinueUrl() })
+          await sendEmailVerification(cred.user, { url: authContinueUrl('/auth/verify-email') })
           // Deliberately not calling /api/users/verify here - checkUser would
           // reject it anyway (fresh account, not verified yet), and it's
           // pointless noise right after a successful signup. This is instead
