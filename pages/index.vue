@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import { toDayIndex } from '~/stores/journal'
 
-definePageMeta({ middleware: ['check-auth'] })
+definePageMeta({ middleware: ['check-auth', 'require-verified'] })
 
 const userStore = useUserStore()
 const journalStore = useJournalStore()
@@ -79,7 +79,14 @@ const date = ref(new Date())
 // flips isAuthenticated to true - otherwise, when the SSR pass renders
 // unauthenticated (e.g. an expired jwt cookie), the streak would stay empty
 // until a manual refresh since useAsyncData doesn't re-run after hydration.
-const [, { error: entriesError, refresh: refreshEntries }] = await Promise.all([
+// A still-pending-verification account is handled separately, by the
+// require-verified middleware (definePageMeta above), not from here - a
+// page-level check was tried first (a reactive watch on this useAsyncData's
+// error) and worked when tested via router.push, but not against every real
+// navigation path in production. Middleware, which runs before this page
+// ever mounts, is Nuxt's own better-supported mechanism for this and
+// doesn't share that failure mode.
+const [, { refresh: refreshEntries }] = await Promise.all([
   useAsyncData('home-todays-passage', async () => {
     await passageStore.refreshPassage()
     return true
@@ -90,35 +97,6 @@ const [, { error: entriesError, refresh: refreshEntries }] = await Promise.all([
     return true
   }, { watch: [() => userStore.isAuthenticated] })
 ])
-
-// The dates fetch above is deliberately non-fatal on failure in general (see
-// the comment above it - the home page renders regardless), but a still-
-// pending-verification account is the one failure mode that needs to
-// interrupt that: otherwise this is the page an unverified person lands on
-// first, and it would otherwise just quietly render as if everything's fine.
-//
-// Reactive watch rather than a one-time check here, and this isn't cosmetic:
-// confirmed in production that the 403 can arrive from the *watch-triggered*
-// re-run of 'home-qt-entries' above, not the initial one - isAuthenticated
-// can still read false at the exact instant this Promise.all first resolves
-// on a client-side navigation immediately after registering/logging in, so
-// the first pass short-circuits to null (no error) via the `if
-// (!userStore.isAuthenticated) return null` guard, and only the later,
-// async, watch-driven re-fetch (once isAuthenticated catches up to true)
-// actually calls fetchEntryDates() and 403s. A plain `if` checked once right
-// after this Promise.all never sees that second result; a real Nuxt error
-// log confirmed the throw's stack trace runs through the watch callback, not
-// the initial resolution. `immediate: true` still covers the original
-// synchronous case (SSR, or already-authenticated on arrival) in one place.
-watch(
-  entriesError,
-  (err) => {
-    if (isEmailNotVerifiedError(err)) {
-      navigateTo('/auth/verify-email')
-    }
-  },
-  { immediate: true }
-)
 
 // Re-fetches the passage/entries when the local calendar day has actually
 // rolled over, so a tab left open past midnight doesn't keep showing

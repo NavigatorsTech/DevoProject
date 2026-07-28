@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ middleware: ['check-auth', 'login-check'] })
+definePageMeta({ middleware: ['check-auth', 'login-check', 'require-verified'] })
 
 const userStore = useUserStore()
 const planStore = usePlanStore()
@@ -42,31 +42,21 @@ const snackColor = ref('')
 const snackText = ref('')
 const showDiscardDraftButton = ref(false)
 
-// Gate + "show the right plan's passage after a refresh" in one useAsyncData,
-// matching every other protected page's pattern instead of an onMounted probe
-// - confirmed in production that navigateTo() called from onMounted (after
-// the component has already mounted) is not reliable for this: the redirect
-// call can go through without actually taking effect, letting the page stay
-// fully rendered. Every other working redirect in this app fires from a
-// page's top-level <script setup>, not a lifecycle hook; this now does too.
-// `watch` + `immediate: true` rather than a one-time `if` for the same reason
-// home page's gate needed it - not provably required here (this call has no
-// `watch` option of its own to trigger a delayed second resolution), but it
-// costs nothing and closes the same class of gap uniformly.
-const { error: gateError } = await useAsyncData('create-entry-gate', async () => {
-  await planStore.getPlanChosen()
-  await passageStore.refreshPassage()
-  return true
+// require-verified (middleware) owns the security gate now - two page-level
+// approaches were tried here first (an onMounted probe, then a
+// useAsyncData + reactive watch) and both were confirmed unreliable in
+// production: navigateTo() called from anywhere in this page's own
+// setup/lifecycle did not reliably take effect, letting the page render
+// fully anyway. This is back to plain UX polish only - showing the correct
+// plan's passage after a refresh - with no security responsibility.
+onMounted(async () => {
+  try {
+    await planStore.getPlanChosen()
+    await passageStore.refreshPassage()
+  } catch (e) {
+    console.error(e)
+  }
 })
-watch(
-  gateError,
-  (err) => {
-    if (isEmailNotVerifiedError(err)) {
-      navigateTo('/auth/verify-email')
-    }
-  },
-  { immediate: true }
-)
 
 const getPassageContents = computed(() => passageStore.todaysPassage)
 const getReference = computed(() => passageStore.todaysReference)
