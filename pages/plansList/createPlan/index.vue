@@ -21,15 +21,23 @@ const PlanEditorComponent = ref()
 // so a still-pending-verification account gets redirected before it ever
 // sees the editor, matching every other protected page's gate. See
 // stores/plan.ts's getPlanChosen for why this is the one that surfaces it.
-onMounted(async () => {
-  try {
-    await planStore.getPlanChosen()
-  } catch (e) {
-    if (isEmailNotVerifiedError(e)) {
-      await navigateTo('/auth/verify-email')
+//
+// useAsyncData + a reactive watch, not an onMounted probe - confirmed in
+// production that navigateTo() called from onMounted (after the component
+// has already mounted) is not reliable for this: the call can go through
+// without actually taking effect, letting the page stay fully rendered.
+// Every other working redirect in this app fires from a page's top-level
+// <script setup>, not a lifecycle hook; this now does too.
+const { error: gateError } = await useAsyncData('create-plan-gate', () => planStore.getPlanChosen())
+watch(
+  gateError,
+  (err) => {
+    if (isEmailNotVerifiedError(err)) {
+      navigateTo('/auth/verify-email')
     }
-  }
-})
+  },
+  { immediate: true }
+)
 
 async function submitPlan() {
   const valid = await PlanEditorComponent.value.checkValidation()
