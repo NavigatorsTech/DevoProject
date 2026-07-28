@@ -62,37 +62,55 @@ const password = ref('')
 const snack = ref(false)
 const snackColor = ref('')
 const snackText = ref('')
-// Set right before a register attempt so the isAuthenticated watcher below
-// knows to send them to the "check your email" page instead of home - login
-// (and Google sign-in, which never sets this) still goes straight to '/'.
-const justRegistered = ref(false)
-
 const emailRules = [
   (v: string) => !!v || 'Please enter an email address', // !! converts to boolean
   (v: string) => /.+@.+\..+/.test(v) || 'E-mail must be valid'
 ]
 
-function login() {
-  userStore.authenticateUser({ isLogin: true, id: email.value, pwd: password.value })
+// login/register/loginWithGoogle each explicitly own their own navigation,
+// deciding it from authenticateUser/authenticateWithGoogle's own direct
+// return value - not from an isAuthenticated watcher reacting to token
+// state, and not from checking userStore.errorOccured afterward either.
+// Both were tried and found genuinely racy:
+// - isAuthenticated flips true the instant Firebase's SDK confirms the
+//   credentials (via onIdTokenChanged), independent of and well before
+//   whichever follow-up API call (verify, register) actually resolves, so a
+//   watcher reacting to it can't know yet whether that call is about to fail.
+// - errorOccured looked like a fix, but it's shared, mutable state that the
+//   snackbar watcher below also reacts to by immediately calling
+//   clearError() - depending on microtask ordering, that reactivity flush
+//   can run before this function's own post-await check ever sees it
+//   (confirmed locally: userStore.error read back as null immediately after
+//   a call that had definitely 403'd).
+// A function's own direct return value can't be raced by either.
+async function login() {
+  const ok = await userStore.authenticateUser({ isLogin: true, id: email.value, pwd: password.value })
+  if (!ok) {
+    // Most commonly /api/users/verify 403ing a still-pending-verification
+    // account. Deliberately not auto-redirecting to /auth/verify-email here -
+    // the error snackbar (watched separately) already tells them why, and
+    // this stays a plain login failure rather than silently resuming the
+    // registration flow for someone who's just trying to log in.
+    return
+  }
+  navigateTo('/')
 }
 
 async function register() {
-  justRegistered.value = true
-  await userStore.authenticateUser({ isLogin: false, id: email.value, pwd: password.value })
-  if (userStore.errorOccured) {
+  const ok = await userStore.authenticateUser({ isLogin: false, id: email.value, pwd: password.value })
+  if (!ok) {
     // sendEmailVerification or the follow-up /api/users/register call failed
-    // (Firebase account creation itself may still have succeeded) - reset so
-    // the isAuthenticated watcher below falls back to its normal '/' behavior
-    // rather than sending them to a "check your email" page when no email
-    // was actually sent. The error snackbar (watched separately) shows why.
-    justRegistered.value = false
+    // (Firebase account creation itself may still have succeeded) - the error
+    // snackbar (watched separately) shows why; nothing to navigate to here.
     return
   }
   navigateTo('/auth/verify-email')
 }
 
-function loginWithGoogle() {
-  userStore.authenticateWithGoogle()
+async function loginWithGoogle() {
+  const ok = await userStore.authenticateWithGoogle()
+  if (!ok) return
+  navigateTo('/')
 }
 
 async function passwordReset() {
@@ -117,21 +135,6 @@ async function validate() {
     passwordReset()
   }
 }
-
-watch(
-  () => userStore.isAuthenticated,
-  (isAuthenticated) => {
-    // Deliberately skips entirely while justRegistered is true, rather than
-    // branching on it to decide the destination: isAuthenticated can flip
-    // true (via onIdTokenChanged, as soon as Firebase's SDK notices the new
-    // account) well before register()'s own await chain finishes, or fails,
-    // below - register() alone owns navigation for that case once it knows
-    // the real outcome, so this watcher must not race it.
-    if (isAuthenticated && !justRegistered.value) {
-      navigateTo('/')
-    }
-  }
-)
 
 watch(
   () => userStore.errorOccured,

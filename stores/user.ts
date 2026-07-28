@@ -104,7 +104,16 @@ export const useUserStore = defineStore('user', {
       useCookie('qtAppID', cookieOpts).value = userID
     },
 
-    async authenticateUser(authData: { isLogin: boolean; id: string; pwd: string }) {
+    // Returns true/false directly rather than making callers check
+    // errorOccured afterward - that property is shared, mutable state, and
+    // the snackbar watcher below reacts to it by immediately calling
+    // clearError(); depending on microtask ordering, that reactivity flush
+    // can run before a caller's own post-await check ever sees it, which is
+    // exactly the race that let a pending-verification login through
+    // (confirmed locally: userStore.error read back as null immediately
+    // after a call that definitely 403'd). A direct return value can't be
+    // raced by an unrelated watcher's side effect.
+    async authenticateUser(authData: { isLogin: boolean; id: string; pwd: string }): Promise<boolean> {
       try {
         if (authData.isLogin) {
           await signInWithEmailAndPassword(firebaseAuth(), authData.id, authData.pwd)
@@ -130,9 +139,11 @@ export const useUserStore = defineStore('user', {
             headers: { Authorization: `Bearer ${idToken}` }
           })
         }
+        return true
       } catch (e) {
         this.error = e
         console.error(e)
+        return false
       }
     },
 
@@ -164,7 +175,7 @@ export const useUserStore = defineStore('user', {
       this.error = null
     },
 
-    async authenticateWithGoogle() {
+    async authenticateWithGoogle(): Promise<boolean> {
       try {
         const provider = new GoogleAuthProvider()
         const result = await signInWithPopup(firebaseAuth(), provider)
@@ -174,12 +185,14 @@ export const useUserStore = defineStore('user', {
           method: 'POST',
           headers: { Authorization: `Bearer ${idToken}` }
         })
+        return true
       } catch (e) {
         this.token = null
         this.exTime = null
         this.userID = null
         this.error = e
         console.error(e)
+        return false
       }
     },
 
