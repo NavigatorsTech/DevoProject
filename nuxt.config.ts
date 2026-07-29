@@ -113,14 +113,16 @@ export default defineNuxtConfig({
   // Short-lived cache in front of /api/passages/today: absorbs bursts of
   // concurrent home-page loads without repeating the Mongo plan lookup (the
   // ESV text itself is already cached separately for 1hr via
-  // defineCachedFunction - see server/utils/bible-retrieval.ts). Kept
-  // deliberately short: the endpoint's own "today" logic changes at midnight,
-  // and the day-rollover fix (pages/index.vue) actively requests a fresh
-  // passage right at that boundary - a long TTL here could serve yesterday's
-  // cached response past that point. 60s bounds any staleness to well under
-  // one cycle of that mechanism's own 60s polling interval.
+  // defineCachedFunction - see server/utils/bible-retrieval.ts).
+  // Deliberately swr: false, NOT stale-while-revalidate: `swr: true` returns
+  // the *expired* cached entry immediately and revalidates in the background,
+  // which handed a client-side day-rollover refetch (pages/index.vue) the
+  // previous day's cached passage right at the moment it most needed a fresh
+  // one. maxAge: 60 alone still awaits a fresh resolve once the entry
+  // expires, so the burst-absorption stays but an expired entry can no
+  // longer be served stale.
   routeRules: {
-    '/api/passages/today': { swr: 60 }
+    '/api/passages/today': { cache: { maxAge: 60, swr: false } }
   },
 
   // Server-only secrets are intentionally NOT read from process.env here — this file is

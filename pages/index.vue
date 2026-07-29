@@ -104,15 +104,39 @@ const [, { refresh: refreshEntries }] = await Promise.all([
 // toDayIndex so focus/visibility events and the interval tick are no-ops
 // except right after a real day change.
 let loadedDay = toDayIndex(date.value)
+let rolloverInFlight = false
 
 async function checkDayRollover() {
   const now = new Date()
   if (toDayIndex(now) === loadedDay) return
-  loadedDay = toDayIndex(now)
-  date.value = now
-  await planStore.getPlanChosen()
-  await passageStore.refreshPassage()
-  await refreshEntries()
+  // The 60s tick and focus/visibility events keep firing while the first
+  // attempt is still in flight, now that loadedDay isn't advanced up front to
+  // absorb that.
+  if (rolloverInFlight) return
+  rolloverInFlight = true
+  try {
+    // A failed plan lookup mustn't abort the refresh: getPlanChosen rethrows
+    // for a still-pending-verification account (stores/plan.ts), which isn't
+    // actionable from a background timer tick - the page already routes that
+    // case on load.
+    await planStore.getPlanChosen().catch(() => {})
+    const ok = await passageStore.refreshPassage()
+    await refreshEntries()
+    // Commit only once today's passage has actually landed. Advancing first
+    // meant a single failed post-midnight fetch - overwhelmingly likely on a
+    // sleeping phone with a backgrounded tab - pinned the page to yesterday
+    // for the rest of the day, since every later tick and every refocus saw
+    // loadedDay already current and bailed out early. Leaving it behind turns
+    // the existing interval and focus/visibility handlers into the retry
+    // loop for free. `date` moves with it, so the card's subtitle never
+    // claims a day the text below it isn't from.
+    if (ok) {
+      loadedDay = toDayIndex(now)
+      date.value = now
+    }
+  } finally {
+    rolloverInFlight = false
+  }
 }
 
 function onVisible() {
@@ -128,7 +152,14 @@ onMounted(() => {
   // differs from what SSR already used, instead of unconditionally every load.
   const planBeforeMount = planStore.chosenPlan
   planStore.getPlanChosen().then(() => {
-    if (planStore.chosenPlan !== planBeforeMount) {
+    // Two things can make the SSR-preloaded passage wrong once we're on the
+    // client: the resolved plan differed from what SSR used, and/or the
+    // passage was resolved against the *server's* calendar day - SSR has no
+    // way to know the visitor's timezone, so a visitor outside the server's
+    // timezone needs this one-time correction after hydration.
+    const planChanged = planStore.chosenPlan !== planBeforeMount
+    const dayChanged = passageStore.passageDay !== toDayIndex(new Date())
+    if (planChanged || dayChanged) {
       passageStore.refreshPassage()
     }
   })
