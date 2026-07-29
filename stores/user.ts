@@ -127,17 +127,36 @@ export const useUserStore = defineStore('user', {
           })
         } else {
           const cred = await createUserWithEmailAndPassword(firebaseAuth(), authData.id, authData.pwd)
-          await sendEmailVerification(cred.user, { url: authContinueUrl('/auth/verify-email') })
           // Deliberately not calling /api/users/verify here - checkUser would
           // reject it anyway (fresh account, not verified yet), and it's
           // pointless noise right after a successful signup. This is instead
           // what marks the account as needing verification -
           // server/api/users/register.post.ts is the only place that happens.
+          //
+          // Called BEFORE sendEmailVerification, not after: this is the one
+          // call that sets pendingVerification, and the gate (checkUser) can
+          // only tell "our own half-finished registration" apart from "a
+          // sibling app's account logging in for the first time" via that
+          // flag - so if this never runs, the account is unverified in
+          // Firebase's eyes but permanently ungated in qtapp's. That's exactly
+          // what sendEmailVerification going first risked: it's a third-party
+          // call to Firebase's own send infrastructure, which rate-limits
+          // (auth/too-many-requests, confirmed happening against this same
+          // project) independently of anything qtapp controls - a transient
+          // failure there must not be able to skip this.
           const idToken = await cred.user.getIdToken()
           await $fetch('/api/users/register', {
             method: 'POST',
             headers: { Authorization: `Bearer ${idToken}` }
           })
+          // Best-effort from here on - the account is already correctly
+          // gated regardless of whether the email itself goes out. If this
+          // throws, the verify-email page's own "Resend Email" covers it.
+          try {
+            await sendEmailVerification(cred.user, { url: authContinueUrl('/auth/verify-email') })
+          } catch (e) {
+            console.error(e)
+          }
         }
         return true
       } catch (e) {
