@@ -21,6 +21,12 @@ migration; this plan starts from a stable post-cutover baseline.
 app, CI/deploy/production all run Node 24, and every flow in `FEATURES.md` §11 still passes
 manual QA against the upgraded build.
 
+**Maintenance note:** a clean `npm audit` is a point-in-time result, not a finish line — the
+`brace-expansion` wave (see Phase 0) hit an already-"done" tree just days after Phase 0 landed. Expect
+to re-run `npm audit` and re-check the `overrides` block periodically, not just once. Also: Dependabot
+alerts are only enabled on the `rogeryeosgit/DevoProject` remote (0 open as of 2026-07-29) — alerts are
+disabled entirely on `NavigatorsTech/DevoProject`, so the org repo will never surface them itself.
+
 ---
 
 ## Working process (how this plan is executed)
@@ -63,6 +69,14 @@ manual QA against the upgraded build.
       (`pm2 describe` confirms `node.js version: 24.18.0`, `fork_mode`, 0 restarts) ✓
   - **Done:** `overrides` block landed (`esbuild: ^0.28.1`, `uuid: ^11.1.1`). `npm audit` confirmed
     **0 vulnerabilities** (was 12 moderate). `npm run build` verified clean under Node 24.
+  - **Update 2026-07-2x (`e833d62`):** a fresh `npm audit` a few days after Phase 0 landed surfaced a
+    new wave of **13 high-severity** advisories, all tracing to one transitive package:
+    `brace-expansion <=5.0.7` (unbounded-expansion DoS), pulled in via the `nitropack`/`archiver`
+    chain. `npm audit fix --force`'s own suggested fix was to **downgrade `nuxt` to 4.1.3** to dodge
+    it — a regression, not a fix. Added a third override instead — `brace-expansion: ^5.0.8` — which
+    cleared every alert without touching `nuxt`. Verified `npm ci`, `typecheck`, and `build` all
+    succeed clean afterward. Current overrides block: `esbuild ^0.28.1`, `uuid ^11.1.1`,
+    `brace-expansion ^5.0.8` — `npm audit` still reports 0 vulnerabilities as of 2026-07-29.
 
 - [x] **Phase 1** — Low-risk dependency bumps (batch together) — **done 2026-07-24**
   - `nuxt` 4.4.8 → 4.5.0 (minor) ✓
@@ -124,3 +138,32 @@ manual QA against the upgraded build.
   - Node 26 once it reaches Active LTS (~2026-10-28)
   - `vuetify-nuxt-module` 1.0.0 and TypeScript 7.x once Vue/Volar tooling officially supports them
     (~TS 7.1, similar timeframe)
+
+## MongoDB server upgrades (why they don't move these dependencies)
+
+Checked 2026-07-29 after the user upgraded the Atlas database and asked what needed to change here.
+**Short answer: nothing.** The intuitive assumption — "new database version ⇒ bump Mongoose" — doesn't
+hold for this app, and it's worth recording why so this doesn't get re-derived (or worse, mistakenly
+tangled up with the Phase 3 encryption-plugin risk) next time.
+
+- **You never bump the MongoDB driver directly — Mongoose pins it.** `mongoose` 8.24.1 pins
+  `mongodb: ~6.20.0` (installed 6.20.0), which brings `bson` 6.10.4 and `mongodb-connection-string-url`
+  3.0.2 along with it. A CVE in any of those three is a `package.json` `overrides` entry, same pattern
+  as `esbuild`/`uuid`/`brace-expansion` above — not a reason to touch `mongoose` itself.
+- **Mongoose 8.24.1 already covers every MongoDB server version that exists.** Per Mongoose's official
+  compatibility table, Mongoose 8.x supports server 8.x (requires `^8.7.0`, satisfied). The newest
+  MongoDB server release is 8.2.x — there is no server 9.0. So an Atlas upgrade to any
+  currently-available version needs no dependency change at all.
+- **The app's DB usage is plain CRUD**, which keeps it out of the version-sensitive parts of the
+  driver/server contract. Grepped `server/` for transactions/sessions, CSFLE, aggregation pipelines,
+  change streams, Atlas Search, and time-series — none are used. Only `findOne`, `find`, `create`,
+  `save`, `deleteOne`, `findOneAndUpdate`.
+- **`mongoose-field-encryption` is unaffected by a server upgrade.** It does application-side
+  AES-256-CBC encryption *before* the write reaches the driver — it is not MongoDB's CSFLE/Queryable
+  Encryption, so it has no server-version coupling whatsoever. Its only real risk (see Phase 3) is
+  compatibility with a future **Mongoose 9** bump, which is a separate, still-deferred decision — a
+  database version bump does not trigger it.
+- **Only Mongoose 9 itself would ever move the driver** — it pins `mongodb: ~7.5` (min Node 20.19,
+  satisfied by the Node 24 baseline). That stays gated on Phase 2/3 exactly as written above: it's
+  blocked on validating `mongoose-field-encryption` against Mongoose 9 in staging, not on anything
+  related to the database server version.
