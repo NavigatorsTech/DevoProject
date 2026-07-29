@@ -62,6 +62,16 @@ export function isEmailNotVerifiedError(err: any): boolean {
   // into for its `error` ref (.statusCode/.statusMessage directly) - callers
   // pass either, so this can't assume just one.
   const statusCode = err.statusCode ?? err.response?.status
-  const statusMessage = err.statusMessage ?? err.data?.statusMessage ?? err.data?.message
-  return statusCode === 403 && statusMessage === 'Email not verified'
+  if (statusCode !== 403) return false
+  // err.statusMessage mirrors the HTTP status line's reason phrase - which
+  // only exists in HTTP/1.1. Production (behind Cloudflare) serves HTTP/2,
+  // which has no reason phrase at the protocol level at all, so browsers
+  // report err.statusMessage as "" there regardless of what createError set
+  // server-side (confirmed: the response body still correctly carries
+  // statusMessage "Email not verified", only the transport-level one comes
+  // back empty). `??` doesn't fall through on that - "" is not nullish - so
+  // the body's statusMessage/message must be checked FIRST, not last.
+  return err.data?.statusMessage === 'Email not verified'
+    || err.data?.message === 'Email not verified'
+    || err.statusMessage === 'Email not verified'
 }
