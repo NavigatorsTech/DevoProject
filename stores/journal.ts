@@ -18,7 +18,18 @@ export const useJournalStore = defineStore('journal', {
     // Dates-only mirror of every entry the user has ever written, independent of
     // qtEntries' pagination - streaks need every day, not just the loaded page.
     entryDates: [] as (string | Date)[],
-    hasMoreEntries: true
+    hasMoreEntries: true,
+    // The visitor's current calendar day, read reactively by the streak
+    // getters below instead of each calling `new Date()` inline (a Pinia
+    // getter is a computed - the wall clock isn't a reactive dependency, so
+    // an inline read can never invalidate it; only reassigning this field
+    // can). Initialized once at store creation, which during SSR runs
+    // against the *server's* clock - same wrinkle as passageStore.passageDay
+    // (stores/passage.ts:7-13) - so it hydrates client-side already
+    // possibly one day off for a visitor outside the server's timezone.
+    // touchToday() is the one-time post-hydration reconcile for that;
+    // StreakCard.vue calls it on mount so every host page gets it for free.
+    todayIndex: toDayIndex(new Date())
   }),
 
   getters: {
@@ -35,7 +46,7 @@ export const useJournalStore = defineStore('journal', {
       const days = this.sortedEntryDayIndexes
       if (days.length === 0) return 0
 
-      const today = toDayIndex(new Date())
+      const today = this.todayIndex
       const mostRecent = days[days.length - 1]!
 
       // Streak is broken if the most recent entry is older than yesterday.
@@ -72,11 +83,20 @@ export const useJournalStore = defineStore('journal', {
     hasJournaledToday(): boolean {
       const days = this.sortedEntryDayIndexes
       if (days.length === 0) return false
-      return days[days.length - 1] === toDayIndex(new Date())
+      return days[days.length - 1] === this.todayIndex
     }
   },
 
   actions: {
+    // Recomputes todayIndex from the wall clock, assigning only if it
+    // actually differs - so this is a no-op (no re-render) on the common
+    // case where it's already current. See todayIndex's own comment above
+    // for why a client-side call to this is required, not just a nicety.
+    touchToday() {
+      const current = toDayIndex(new Date())
+      if (current !== this.todayIndex) this.todayIndex = current
+    },
+
     async createEntry(entrySubmitted: any) {
       try {
         const entry = await authFetch('/api/qtJournalEntries', {
@@ -132,12 +152,17 @@ export const useJournalStore = defineStore('journal', {
 
     // Cheap dates-only fetch backing the streak getters - independent of
     // qtEntries' pagination, so streaks always reflect the full history.
-    async fetchEntryDates() {
+    // Returns whether it actually landed (mirrors passageStore.refreshPassage
+    // - stores/passage.ts:25), so a caller like pages/index.vue's wake
+    // handler can retry instead of silently pinning stale data after a
+    // failed background sync.
+    async fetchEntryDates(): Promise<boolean> {
       const userStore = useUserStore()
       try {
         this.entryDates = await authFetch('/api/qtJournalEntries', {
           params: { creatorEmail: userStore.userID, mode: 'dates' }
         }).then((dates: any[]) => dates.map((d) => d.date))
+        return true
       } catch (e) {
         // Swallowed in general - both callers treat the streak/dates fetch as
         // non-fatal, the rest of their page must still render. The one
@@ -148,6 +173,7 @@ export const useJournalStore = defineStore('journal', {
         // making this non-fatal-on-failure behavior fatal in general.
         if (isEmailNotVerifiedError(e)) throw e
         console.error(e)
+        return false
       }
     },
 

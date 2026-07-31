@@ -46,6 +46,14 @@
 <script setup lang="ts">
 const journalStore = useJournalStore()
 
+// One-time post-hydration reconcile: journalStore.todayIndex is initialized
+// during store creation, which during SSR runs against the *server's* clock
+// (see the field's own comment in stores/journal.ts). This corrects it to
+// the visitor's actual day on mount, client-side only - every page that
+// renders this card gets that correction for free, rather than each page
+// having to remember to call it.
+onMounted(() => journalStore.touchToday())
+
 const currentStreak = computed(() => journalStore.getCurrentStreak)
 const longestStreak = computed(() => journalStore.getLongestStreak)
 const journaledToday = computed(() => journalStore.hasJournaledToday)

@@ -133,14 +133,58 @@ async function checkDayRollover() {
     if (ok) {
       loadedDay = toDayIndex(now)
       date.value = now
+      // The rollover's own refreshEntries() call above already re-synced
+      // entryDates for the new day - don't let syncEntryDates's throttle
+      // window (still ticking from before the rollover) swallow the very
+      // next refocus.
+      lastEntrySyncAt = 0
     }
   } finally {
     rolloverInFlight = false
   }
 }
 
+const ENTRY_SYNC_MIN_INTERVAL_MS = 30_000
+// SSR/hydration already loaded entryDates (see the Promise.all above), so a
+// refocus within 30s of load is a no-op rather than a redundant refetch.
+let lastEntrySyncAt = Date.now()
+let entrySyncInFlight = false
+let entriesStale = false
+
+// Unlike checkDayRollover, this exists to catch entries written elsewhere -
+// another tab, another device - since the last sync, which a same-day
+// refocus would otherwise never notice: nothing else reassigns entryDates
+// mid-day, and the streak getters can't invalidate on their own (see
+// stores/journal.ts's todayIndex comment). Deliberately not called from the
+// 60s interval below - only from refocus - so an open tab doesn't poll this
+// auth-gated endpoint once a minute indefinitely.
+async function syncEntryDates() {
+  if (!userStore.isAuthenticated || entrySyncInFlight) return
+  const now = Date.now()
+  // A failed sync clears the throttle (via entriesStale) so the very next
+  // refocus retries instead of waiting out the window.
+  if (!entriesStale && now - lastEntrySyncAt < ENTRY_SYNC_MIN_INTERVAL_MS) return
+  entrySyncInFlight = true
+  try {
+    // Called directly rather than through refreshEntries(): the store action
+    // reports whether it actually landed, whereas useAsyncData's refresh()
+    // resolves either way. .catch() because fetchEntryDates rethrows for a
+    // still-pending-verification account, which isn't actionable from a
+    // background wake handler - the require-verified middleware already
+    // routes that case on load.
+    const ok = await journalStore.fetchEntryDates().catch(() => false)
+    entriesStale = !ok
+    if (ok) lastEntrySyncAt = now
+  } finally {
+    entrySyncInFlight = false
+  }
+}
+
 function onVisible() {
-  if (document.visibilityState === 'visible') checkDayRollover()
+  if (document.visibilityState !== 'visible') return
+  journalStore.touchToday()
+  checkDayRollover()
+  syncEntryDates()
 }
 
 let rolloverInterval: ReturnType<typeof setInterval> | undefined
@@ -166,7 +210,10 @@ onMounted(() => {
 
   document.addEventListener('visibilitychange', onVisible)
   window.addEventListener('focus', onVisible)
-  rolloverInterval = setInterval(checkDayRollover, 60_000)
+  rolloverInterval = setInterval(() => {
+    journalStore.touchToday()
+    checkDayRollover()
+  }, 60_000)
 })
 
 onBeforeUnmount(() => {
